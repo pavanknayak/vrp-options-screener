@@ -12,14 +12,14 @@
 
 | Field | Value |
 |-------|-------|
-| Current Phase | Phase 1: Data Infrastructure |
+| Current Phase | Phase 2: Analytics Engine |
 | Current Plan | None started |
-| Status | Not started |
-| Last Updated | 2026-03-06 |
+| Status | Phase 1 complete — Phase 2 not started |
+| Last Updated | 2026-03-07 |
 
 **Progress**:
 ```
-Phase 1 [          ] 0%
+Phase 1 [##########] 100% ✓
 Phase 2 [          ] 0%
 Phase 3 [          ] 0%
 Phase 4 [          ] 0%
@@ -27,7 +27,7 @@ Phase 5 [          ] 0%
 Phase 6 [          ] 0%
 ```
 
-**Overall**: 0 / 6 phases complete
+**Overall**: 1 / 6 phases complete
 
 ---
 
@@ -36,11 +36,11 @@ Phase 6 [          ] 0%
 | Metric | Value |
 |--------|-------|
 | Requirements total | 61 |
-| Requirements complete | 0 |
+| Requirements complete | 12 |
 | Phases total | 6 |
-| Phases complete | 0 |
-| Plans written | 0 |
-| Plans complete | 0 |
+| Phases complete | 1 |
+| Plans written | 4 |
+| Plans complete | 4 |
 
 ---
 
@@ -69,10 +69,12 @@ Phase 6 [          ] 0%
 - None
 
 ### Notes for Next Session
-- Start with Phase 1 plan: `/gsd:plan-phase 1`
-- Phase 1 is the largest single phase (12 requirements) — expect 4-6 plans
-- Phase 4 (Fundamentals) has no dependency on Phase 2 or 3 — can be parallelized after Phase 1 completes
-- SEC EDGAR integration (DATA-06) and Schwab OAuth (DATA-03) are the two highest-risk items in Phase 1
+- Phase 1 is COMPLETE. Start Phase 2: `/gsd:plan-phase 2`
+- Phase 2 covers 16 requirements (ANAL-01 through ANAL-16): Yang-Zhang/Parkinson/Garman-Klass RV, HAR-RV, GARCH-GJR, EWMA, BSM IV surface, VRP signals (12), composite score 0-100, regime detection
+- Phase 4 (Fundamentals) has no dependency on Phase 2 or 3 — can be parallelized after Phase 2 starts
+- EDGAR CIK URL format confirmed: uses `CIK` prefix (e.g. `CIK0000320193`) not bare numeric string — already fixed in edgar_fetcher.py
+- FRED API key not yet configured — fetchers default gracefully (0.05 risk-free rate); user must set FRED_API_KEY env var for live rates
+- Schwab credentials not yet configured — user must set SCHWAB_APP_KEY and SCHWAB_APP_SECRET env vars, then complete OAuth flow on first run
 
 ---
 

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+vrp_cache.db
+schwab_token.json
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
