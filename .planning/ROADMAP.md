@@ -28,7 +28,13 @@
 4. User can open the Configuration sidebar, add a ticker to any tier, remove a ticker from any tier, and the change persists the next time the app starts.
 5. Each of the ~1,485 tickers in the universe resolves its correct tier (1A–7) at load time, with tier-specific rules (crypto spread/collar only, China ADR restrictions) correctly attached.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [x] 01-01-PLAN.md — SQLite TTL cache + OHLCV and FRED fetchers
+- [x] 01-02-PLAN.md — Ticker universe loader and tier assignment
+- [x] 01-03-PLAN.md — yfinance options and earnings fetchers + FOMC calendar
+- [x] 01-04-PLAN.md — Schwab OAuth2 client and EDGAR XBRL fetcher
 
 ---
 
@@ -47,7 +53,15 @@
 4. App detects the current VIX regime (Low/Normal/Elevated/High/Crisis) and the regime label matches the VIX level displayed in the UI banner.
 5. GEX and PCR computed from a Schwab options chain match a manual spot-check of OI × gamma × 100 × spot² and put-OI / call-OI respectively.
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Yang-Zhang, Parkinson, Garman-Klass RV estimators (realized_vol.py)
+- [ ] 02-02-PLAN.md — HAR-RV, GARCH-GJR, EWMA forecasters + Bipower Variation (forecasters.py)
+- [ ] 02-03-PLAN.md — BSM IV inversion, PCHIP smile, IV30/IV60 interpolation, VRP (iv_surface.py)
+- [ ] 02-04-PLAN.md — VIX regime detection + GEX + PCR microstructure (regime.py, microstructure.py)
+- [ ] 02-05-PLAN.md — All 12 VRP signals + timing signal (vrp_engine.py)
+- [ ] 02-06-PLAN.md — Composite VRP score 0–100 + run_analytics() orchestrator (composite_score.py, engine.py)
 
 ---
 
@@ -133,7 +147,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Data Infrastructure | 4/4 | Complete | 2026-03-07 |
-| 2. Analytics Engine | 0/? | Not started | - |
+| 2. Analytics Engine | 0/6 | Planned | - |
 | 3. Scanner Pipeline | 0/? | Not started | - |
 | 4. Fundamentals Engine | 0/? | Not started | - |
 | 5. Recommendations & Reasoning | 0/? | Not started | - |
