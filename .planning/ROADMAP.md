@@ -104,7 +104,12 @@ Plans:
 4. App computes the Margin of Safety score across all 6 factors and the Combined Fundamental Score (0.45 × F-Score normalized + 0.55 × MOS), consistent with the formula in the spec.
 5. Per-tier minimum fundamental thresholds are enforced: a ticker that fails its tier's minimum score cannot receive a CSP recommendation, and the go/no-go matrix shows which threshold it failed.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Extended EDGAR fetcher (prior-year fields) + Piotroski F-Score 9-factor computation (fundamentals/edgar_extended.py, fundamentals/piotroski.py)
+- [ ] 04-02-PLAN.md — Altman Z-Score model selection (Z/Z'/Z'') + Quality of Earnings + Margin of Safety 6-factor score (fundamentals/altman.py, fundamentals/quality.py)
+- [ ] 04-03-PLAN.md — Fundamentals engine orchestrator: Combined Score + per-tier gate enforcement (fundamentals/engine.py)
 
 ---
 
@@ -154,7 +159,7 @@ Plans:
 | 1. Data Infrastructure | 4/4 | Complete | 2026-03-07 |
 | 2. Analytics Engine | 6/6 | Complete | 2026-03-07 |
 | 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
-| 4. Fundamentals Engine | 0/? | Not started | - |
+| 4. Fundamentals Engine | 0/3 | Planned | - |
 | 5. Recommendations & Reasoning | 0/? | Not started | - |
 | 6. UI & Portfolio Monitor | 0/? | Not started | - |
 
