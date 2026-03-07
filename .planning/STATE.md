@@ -4,7 +4,7 @@
 
 **Core Value**: Surface statistically-significant VRP opportunities with complete, self-explaining trade plans — including written reasoning, four-scenario P&L, and Kelly-sized positions — across ~1,485 US-listed tickers, so the user spends time deciding on trades rather than hunting for them.
 
-**Current Focus**: Phase 1 — Data Infrastructure
+**Current Focus**: Phase 3 — Scanner Pipeline
 
 ---
 
@@ -12,22 +12,22 @@
 
 | Field | Value |
 |-------|-------|
-| Current Phase | Phase 2: Analytics Engine |
+| Current Phase | Phase 3: Scanner Pipeline |
 | Current Plan | None started |
-| Status | Phase 1 complete — Phase 2 not started |
+| Status | Phase 2 complete — Phase 3 not started |
 | Last Updated | 2026-03-07 |
 
 **Progress**:
 ```
 Phase 1 [##########] 100% ✓
-Phase 2 [          ] 0%
+Phase 2 [##########] 100% ✓
 Phase 3 [          ] 0%
 Phase 4 [          ] 0%
 Phase 5 [          ] 0%
 Phase 6 [          ] 0%
 ```
 
-**Overall**: 1 / 6 phases complete
+**Overall**: 2 / 6 phases complete
 
 ---
 
@@ -36,11 +36,11 @@ Phase 6 [          ] 0%
 | Metric | Value |
 |--------|-------|
 | Requirements total | 61 |
-| Requirements complete | 12 |
+| Requirements complete | 28 |
 | Phases total | 6 |
-| Phases complete | 1 |
-| Plans written | 4 |
-| Plans complete | 4 |
+| Phases complete | 2 |
+| Plans written | 10 |
+| Plans complete | 10 |
 
 ---
 
@@ -69,12 +69,14 @@ Phase 6 [          ] 0%
 - None
 
 ### Notes for Next Session
-- Phase 1 is COMPLETE. Start Phase 2: `/gsd:plan-phase 2`
-- Phase 2 covers 16 requirements (ANAL-01 through ANAL-16): Yang-Zhang/Parkinson/Garman-Klass RV, HAR-RV, GARCH-GJR, EWMA, BSM IV surface, VRP signals (12), composite score 0-100, regime detection
-- Phase 4 (Fundamentals) has no dependency on Phase 2 or 3 — can be parallelized after Phase 2 starts
-- EDGAR CIK URL format confirmed: uses `CIK` prefix (e.g. `CIK0000320193`) not bare numeric string — already fixed in edgar_fetcher.py
-- FRED API key not yet configured — fetchers default gracefully (0.05 risk-free rate); user must set FRED_API_KEY env var for live rates
-- Schwab credentials not yet configured — user must set SCHWAB_APP_KEY and SCHWAB_APP_SECRET env vars, then complete OAuth flow on first run
+- Phase 2 is COMPLETE. Start Phase 3: `/gsd:plan-phase 3`
+- Phase 3 covers 5 requirements (SCAN-01 through SCAN-05): two-stage scan pipeline, Stage 1 yfinance pre-filter (20 threads, top 175), Stage 2 Schwab deep analysis (100 req/min), earnings filtering, 4 scan modes (Full/Quick/Single/Event), auto-trigger at 9:45 AM ET
+- Phase 4 (Fundamentals) has no dependency on Phase 2 or 3 — can be planned and parallelized now
+- `run_analytics(ticker, chain, ohlc, r, vix)` is the Phase 3 entry point — Stage 2 calls this per candidate
+- PCHIP fit_iv_smile deduplicates strikes (puts+calls share strikes) before fitting — already fixed in iv_surface.py
+- skew_zscore defaults to 0.0 (skew_history_available: False) — rolling smile cache not yet built; will be addressed in Phase 3 warm-cache path
+- FRED API key not yet configured — fetchers default gracefully (0.05 risk-free rate)
+- Schwab credentials not yet configured — user must set SCHWAB_APP_KEY + SCHWAB_APP_SECRET, complete OAuth on first run
 
 ---
 
@@ -82,4 +84,4 @@ Phase 6 [          ] 0%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: `/gsd:plan-phase 1` to decompose Phase 1: Data Infrastructure into executable plans
+**Next action**: `/gsd:plan-phase 3` to plan Phase 3: Scanner Pipeline

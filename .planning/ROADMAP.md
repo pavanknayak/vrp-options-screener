@@ -3,7 +3,7 @@
 ## Phases
 
 - [x] **Phase 1: Data Infrastructure** - App launches, fetches and caches all data sources, manages the ticker universe
-- [ ] **Phase 2: Analytics Engine** - App computes all volatility estimators, IV surface, VRP signals, and composite score
+- [x] **Phase 2: Analytics Engine** - App computes all volatility estimators, IV surface, VRP signals, and composite score
 - [ ] **Phase 3: Scanner Pipeline** - App runs two-stage scan across the full universe within performance budgets
 - [ ] **Phase 4: Fundamentals Engine** - App scores every Stage 2 candidate on Piotroski, Altman, quality-of-earnings, and margin-of-safety
 - [ ] **Phase 5: Recommendations & Reasoning** - App produces complete, self-explaining trade plans with four-scenario P&L, Kelly sizing, and narrative paragraphs
@@ -147,7 +147,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Data Infrastructure | 4/4 | Complete | 2026-03-07 |
-| 2. Analytics Engine | 0/6 | Planned | - |
+| 2. Analytics Engine | 6/6 | Complete | 2026-03-07 |
 | 3. Scanner Pipeline | 0/? | Not started | - |
 | 4. Fundamentals Engine | 0/? | Not started | - |
 | 5. Recommendations & Reasoning | 0/? | Not started | - |
