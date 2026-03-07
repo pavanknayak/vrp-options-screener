@@ -4,7 +4,7 @@
 
 **Core Value**: Surface statistically-significant VRP opportunities with complete, self-explaining trade plans — including written reasoning, four-scenario P&L, and Kelly-sized positions — across ~1,485 US-listed tickers, so the user spends time deciding on trades rather than hunting for them.
 
-**Current Focus**: Phase 3 — Scanner Pipeline
+**Current Focus**: Phase 4 — Fundamentals Engine
 
 ---
 
@@ -12,22 +12,22 @@
 
 | Field | Value |
 |-------|-------|
-| Current Phase | Phase 3: Scanner Pipeline |
+| Current Phase | Phase 4: Fundamentals Engine |
 | Current Plan | None started |
-| Status | Phase 2 complete — Phase 3 not started |
+| Status | Phase 3 complete — Phase 4 not started |
 | Last Updated | 2026-03-07 |
 
 **Progress**:
 ```
 Phase 1 [##########] 100% ✓
 Phase 2 [##########] 100% ✓
-Phase 3 [          ] 0%
+Phase 3 [##########] 100% ✓
 Phase 4 [          ] 0%
 Phase 5 [          ] 0%
 Phase 6 [          ] 0%
 ```
 
-**Overall**: 2 / 6 phases complete
+**Overall**: 3 / 6 phases complete
 
 ---
 
@@ -36,11 +36,11 @@ Phase 6 [          ] 0%
 | Metric | Value |
 |--------|-------|
 | Requirements total | 61 |
-| Requirements complete | 28 |
+| Requirements complete | 33 |
 | Phases total | 6 |
-| Phases complete | 2 |
-| Plans written | 10 |
-| Plans complete | 10 |
+| Phases complete | 3 |
+| Plans written | 13 |
+| Plans complete | 13 |
 
 ---
 
@@ -69,14 +69,12 @@ Phase 6 [          ] 0%
 - None
 
 ### Notes for Next Session
-- Phase 2 is COMPLETE. Start Phase 3: `/gsd:plan-phase 3`
-- Phase 3 covers 5 requirements (SCAN-01 through SCAN-05): two-stage scan pipeline, Stage 1 yfinance pre-filter (20 threads, top 175), Stage 2 Schwab deep analysis (100 req/min), earnings filtering, 4 scan modes (Full/Quick/Single/Event), auto-trigger at 9:45 AM ET
-- Phase 4 (Fundamentals) has no dependency on Phase 2 or 3 — can be planned and parallelized now
-- `run_analytics(ticker, chain, ohlc, r, vix)` is the Phase 3 entry point — Stage 2 calls this per candidate
-- PCHIP fit_iv_smile deduplicates strikes (puts+calls share strikes) before fitting — already fixed in iv_surface.py
-- skew_zscore defaults to 0.0 (skew_history_available: False) — rolling smile cache not yet built; will be addressed in Phase 3 warm-cache path
+- Phase 3 is COMPLETE. Start Phase 4: `/gsd:plan-phase 4`
+- Phase 4 covers 6 requirements (FUND-01 through FUND-06): Piotroski F-Score, Altman Z-Score model selection, Quality of Earnings (CFO/NI), Margin of Safety, Combined Fundamental Score, per-tier gate enforcement
+- Phase 4 depends on Phase 1 only — can be built without Phase 2/3 at runtime
 - FRED API key not yet configured — fetchers default gracefully (0.05 risk-free rate)
 - Schwab credentials not yet configured — user must set SCHWAB_APP_KEY + SCHWAB_APP_SECRET, complete OAuth on first run
+- ScanOrchestrator singleton available via scanner.orchestrator.get_orchestrator() — Streamlit never imports stage1/stage2 directly
 
 ---
 
@@ -84,4 +82,4 @@ Phase 6 [          ] 0%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: `/gsd:plan-phase 3` to plan Phase 3: Scanner Pipeline
+**Next action**: `/gsd:plan-phase 4` to plan Phase 4: Fundamentals Engine

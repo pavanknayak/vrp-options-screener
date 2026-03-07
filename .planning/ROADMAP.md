@@ -4,7 +4,7 @@
 
 - [x] **Phase 1: Data Infrastructure** - App launches, fetches and caches all data sources, manages the ticker universe
 - [x] **Phase 2: Analytics Engine** - App computes all volatility estimators, IV surface, VRP signals, and composite score
-- [ ] **Phase 3: Scanner Pipeline** - App runs two-stage scan across the full universe within performance budgets
+- [x] **Phase 3: Scanner Pipeline** - App runs two-stage scan across the full universe within performance budgets
 - [ ] **Phase 4: Fundamentals Engine** - App scores every Stage 2 candidate on Piotroski, Altman, quality-of-earnings, and margin-of-safety
 - [ ] **Phase 5: Recommendations & Reasoning** - App produces complete, self-explaining trade plans with four-scenario P&L, Kelly sizing, and narrative paragraphs
 - [ ] **Phase 6: UI & Portfolio Monitor** - App surfaces everything through a coherent Streamlit interface with portfolio correlation monitoring
@@ -83,9 +83,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Stage 1 parallel pre-filter: scanner/stage1.py (20-thread ThreadPoolExecutor, earnings skip, IVP×VRP ranking)
-- [ ] 03-02-PLAN.md — Stage 2 deep analysis + scan modes: scanner/stage2.py, scanner/modes.py (Schwab rate-limit, 429 retry, Quick/Single/Event)
-- [ ] 03-03-PLAN.md — Scan orchestrator + APScheduler: scanner/orchestrator.py (ScanOrchestrator, 9:45 AM ET auto-trigger, result cache, singleton)
+- [x] 03-01-PLAN.md — Stage 1 parallel pre-filter: scanner/stage1.py (20-thread ThreadPoolExecutor, earnings skip, IVP×VRP ranking)
+- [x] 03-02-PLAN.md — Stage 2 deep analysis + scan modes: scanner/stage2.py, scanner/modes.py (Schwab rate-limit, 429 retry, Quick/Single/Event)
+- [x] 03-03-PLAN.md — Scan orchestrator + APScheduler: scanner/orchestrator.py (ScanOrchestrator, 9:45 AM ET auto-trigger, result cache, singleton)
 
 ---
 
@@ -153,7 +153,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Data Infrastructure | 4/4 | Complete | 2026-03-07 |
 | 2. Analytics Engine | 6/6 | Complete | 2026-03-07 |
-| 3. Scanner Pipeline | 0/3 | Not started | - |
+| 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
 | 4. Fundamentals Engine | 0/? | Not started | - |
 | 5. Recommendations & Reasoning | 0/? | Not started | - |
 | 6. UI & Portfolio Monitor | 0/? | Not started | - |
