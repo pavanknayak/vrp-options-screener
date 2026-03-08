@@ -6,6 +6,9 @@ from data.schwab_client import fetch_options_chain
 from data.yfinance_fetcher import fetch_ohlcv
 from data.fred_fetcher import get_risk_free_rate, fetch_vix_history
 from analytics.engine import run_analytics
+from fundamentals.engine import run_fundamentals
+from recommendations.engine import run_recommendation
+from universe.loader import get_ticker_info
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +54,27 @@ def _analyze_one(ticker: str, r: float, vix: float) -> dict:
         chain = fetch_options_chain(ticker, min_dte=25, max_dte=55)
     if chain is None:
         return {"ticker": ticker, "error": "schwab_chain_unavailable"}
-    result = run_analytics(ticker, chain, ohlc, r, vix)
-    return result
+    analytics_result = run_analytics(ticker, chain, ohlc, r, vix)
+    if analytics_result.get("error"):
+        return analytics_result
+
+    # Resolve tier metadata — fall back to a minimal stub for unknown tickers
+    ticker_info = get_ticker_info(ticker)
+    if ticker_info is None:
+        analytics_result["recommendation"] = {"error": "ticker_not_in_universe"}
+        return analytics_result
+
+    fundamentals_result = run_fundamentals(ticker, ticker_info.tier, ticker_info.asset_class)
+    recommendation = run_recommendation(
+        ticker=ticker,
+        analytics_result=analytics_result,
+        fundamentals_result=fundamentals_result,
+        ticker_info=ticker_info,
+        chain=chain,
+    )
+    analytics_result["recommendation"] = recommendation
+    analytics_result["passed"] = recommendation.get("passed", False)
+    return analytics_result
 
 
 def run_stage2(

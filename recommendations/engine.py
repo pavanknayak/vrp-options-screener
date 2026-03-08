@@ -197,6 +197,7 @@ def run_recommendation(
             "dte": card.dte,
             "short_strike": card.short_strike,
             "long_strike": card.long_strike,
+            "collar_call_strike": card.collar_call_strike,
             "spot": card.spot,
             "target_delta": card.target_delta,
             "fomc_status": card.fomc_status,
