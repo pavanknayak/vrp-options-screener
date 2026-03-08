@@ -6,7 +6,7 @@
 - [x] **Phase 2: Analytics Engine** - App computes all volatility estimators, IV surface, VRP signals, and composite score
 - [x] **Phase 3: Scanner Pipeline** - App runs two-stage scan across the full universe within performance budgets
 - [x] **Phase 4: Fundamentals Engine** - App scores every Stage 2 candidate on Piotroski, Altman, quality-of-earnings, and margin-of-safety
-- [ ] **Phase 5: Recommendations & Reasoning** - App produces complete, self-explaining trade plans with four-scenario P&L, Kelly sizing, and narrative paragraphs
+- [x] **Phase 5: Recommendations & Reasoning** - App produces complete, self-explaining trade plans with four-scenario P&L, Kelly sizing, and narrative paragraphs
 - [ ] **Phase 6: UI & Portfolio Monitor** - App surfaces everything through a coherent Streamlit interface with portfolio correlation monitoring
 
 ---
@@ -135,7 +135,7 @@ Plans:
 - [x] 05-02-PLAN.md — Structure/strike/DTE selection: recommendations/structures.py (StructureResult, select_structure, select_strikes)
 - [x] 05-03-PLAN.md — P&L scenarios + slippage EV + Kelly sizing: recommendations/pnl.py (ScenarioPnL, PnLResult, compute_*)
 - [x] 05-04-PLAN.md — Recommendation card assembly + narrative paragraphs + order text: recommendations/card.py
-- [ ] 05-05-PLAN.md — Orchestrator entry point: recommendations/engine.py (run_recommendation)
+- [x] 05-05-PLAN.md — Orchestrator entry point: recommendations/engine.py (run_recommendation)
 
 ---
 
@@ -167,7 +167,7 @@ Plans:
 | 2. Analytics Engine | 6/6 | Complete | 2026-03-07 |
 | 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
 | 4. Fundamentals Engine | 3/3 | Complete | 2026-03-07 |
-| 5. Recommendations & Reasoning | 4/5 | In progress | - |
+| 5. Recommendations & Reasoning | 5/5 | Complete | 2026-03-08 |
 | 6. UI & Portfolio Monitor | 0/? | Not started | - |
 
 ---

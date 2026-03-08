@@ -13,8 +13,8 @@
 | Field | Value |
 |-------|-------|
 | Current Phase | Phase 5: Recommendations & Reasoning |
-| Current Plan | 05-04 complete — next: 05-05 (Recommendations orchestrator engine.py) |
-| Status | Phase 5 in progress (4/5 plans complete) |
+| Current Plan | 05-05 complete — Phase 5 COMPLETE |
+| Status | Phase 5 complete (5/5 plans complete) — next: Phase 6 |
 | Last Updated | 2026-03-08 |
 
 **Progress**:
@@ -23,11 +23,11 @@ Phase 1 [##########] 100% ✓
 Phase 2 [##########] 100% ✓
 Phase 3 [##########] 100% ✓
 Phase 4 [##########] 100% ✓
-Phase 5 [########  ] 80%
+Phase 5 [##########] 100% ✓
 Phase 6 [          ] 0%
 ```
 
-**Overall**: 4 / 6 phases complete
+**Overall**: 5 / 6 phases complete
 
 ---
 
@@ -36,11 +36,11 @@ Phase 6 [          ] 0%
 | Metric | Value |
 |--------|-------|
 | Requirements total | 61 |
-| Requirements complete | 39 |
+| Requirements complete | 51 |
 | Phases total | 6 |
-| Phases complete | 4 |
+| Phases complete | 5 |
 | Plans written | 21 |
-| Plans complete | 18 |
+| Plans complete | 19 |
 
 ---
 
@@ -59,6 +59,7 @@ Phase 6 [          ] 0%
 - 05-02 COMPLETE: select_structure(), select_strikes(), StructureResult; FOMC-aware DTE selection; Kelly-optimal delta
 - 05-03 COMPLETE: compute_slippage_ev() mid*0.75; compute_pnl_scenarios() 4-scenario P&L; compute_kelly_size() 0.25 base * regime*VoV*GEX multipliers
 - 05-04 COMPLETE: build_recommendation_card(); RecommendationCard dataclass; three data-driven narrative paragraphs; broker-ready order text for CSP/Spread/Collar
+- 05-05 COMPLETE: run_recommendation() orchestrator; chains gonogo->structures->pnl->card in dependency order; never raises; always builds card for UI even on gonogo fail
 - Fundamentals error key causes HARD-06 and SOFT-08 to pass through with warning (not block)
 
 ### Architecture Notes
@@ -75,15 +76,15 @@ Phase 6 [          ] 0%
 
 ### Notes for Next Session
 - Phase 4 COMPLETE: all 3 plans executed — edgar_extended.py, piotroski.py, altman.py, quality.py, engine.py
-- Phase 5 covers 12 requirements (REC-01 through REC-08, REAS-01 through REAS-04): go/no-go matrix, structure selection, Kelly sizing, four-scenario P&L, narrative paragraphs
-- Phase 5 depends on Phase 2 (analytics), Phase 3 (scanner), Phase 4 (fundamentals)
+- Phase 5 COMPLETE: all 5 plans executed — gonogo.py, structures.py, pnl.py, card.py, engine.py
+- Phase 6 is the final phase: Streamlit UI + Portfolio Monitor
 - Altman Z': default for all public equity with market price (manufacturer distinction not implemented per PRD §10)
 - Altman Z'': fallback when no market price available (BVE/TL instead of MVE/TL)
 - Per-tier gates: Tier 3 (combined>55, Altman≥1.23, Piotroski≥5), Tier 4 (>65, ≥2.50, ≥6), Tier 5 (>75, ≥2.99, ≥7)
 - FRED API key not yet configured — fetchers default gracefully (0.05 risk-free rate)
 - Schwab credentials not yet configured — user must set SCHWAB_APP_KEY + SCHWAB_APP_SECRET, complete OAuth on first run
 - ScanOrchestrator singleton available via scanner.orchestrator.get_orchestrator()
-- run_fundamentals() is the single public entry point for Phase 5 and UI
+- run_recommendation() is the single public entry point for Phase 5 recommendations
 
 ---
 
@@ -91,4 +92,4 @@ Phase 6 [          ] 0%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: Execute Phase 5 Plan 05 — Recommendations orchestrator (recommendations/engine.py, run_recommendation entry point)
+**Next action**: Begin Phase 6 — UI & Portfolio Monitor (Streamlit dashboard, ticker detail, custom lookup, configuration, portfolio correlation monitor)
