@@ -128,7 +128,14 @@ Plans:
 4. Four-scenario P&L (Bull/Base/Bear/Crash) uses slippage-adjusted EV (bid-ask × 0.75 factor per leg), and crypto ETF crash scenarios use ±50% shocks — numbers are self-consistent and match manual verification on a sample ticker.
 5. Each recommendation card contains three narrative paragraphs: (1) which signals are elevated and by how much vs history, (2) why to enter now versus wait referencing VRP momentum/FOMC/GEX/VoV, (3) the specific event or condition that would cause this trade to lose — written in plain English with no generic boilerplate.
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — 21-point go/no-go matrix: recommendations/gonogo.py (GoNoGoResult, evaluate_gonogo)
+- [ ] 05-02-PLAN.md — Structure/strike/DTE selection: recommendations/structures.py (StructureResult, select_structure, select_strikes)
+- [ ] 05-03-PLAN.md — P&L scenarios + slippage EV + Kelly sizing: recommendations/pnl.py (ScenarioPnL, PnLResult, compute_*)
+- [ ] 05-04-PLAN.md — Recommendation card assembly + narrative paragraphs + order text: recommendations/card.py
+- [ ] 05-05-PLAN.md — Orchestrator entry point: recommendations/engine.py (run_recommendation)
 
 ---
 
@@ -160,7 +167,7 @@ Plans:
 | 2. Analytics Engine | 6/6 | Complete | 2026-03-07 |
 | 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
 | 4. Fundamentals Engine | 3/3 | Complete | 2026-03-07 |
-| 5. Recommendations & Reasoning | 0/? | Not started | - |
+| 5. Recommendations & Reasoning | 0/5 | Not started | - |
 | 6. UI & Portfolio Monitor | 0/? | Not started | - |
 
 ---
