@@ -4,7 +4,7 @@
 
 **Core Value**: Surface statistically-significant VRP opportunities with complete, self-explaining trade plans — including written reasoning, four-scenario P&L, and Kelly-sized positions — across ~1,485 US-listed tickers, so the user spends time deciding on trades rather than hunting for them.
 
-**Current Focus**: Phase 4 — Fundamentals Engine
+**Current Focus**: Phase 5 — Recommendations & Reasoning
 
 ---
 
@@ -12,9 +12,9 @@
 
 | Field | Value |
 |-------|-------|
-| Current Phase | Phase 4: Fundamentals Engine |
-| Current Plan | None started |
-| Status | Phase 3 complete — Phase 4 not started |
+| Current Phase | Phase 5: Recommendations & Reasoning |
+| Current Plan | Phase 4 complete — Phase 5 planning next |
+| Status | Phase 5 not started |
 | Last Updated | 2026-03-07 |
 
 **Progress**:
@@ -22,12 +22,12 @@
 Phase 1 [##########] 100% ✓
 Phase 2 [##########] 100% ✓
 Phase 3 [##########] 100% ✓
-Phase 4 [          ] 0%
+Phase 4 [##########] 100% ✓
 Phase 5 [          ] 0%
 Phase 6 [          ] 0%
 ```
 
-**Overall**: 3 / 6 phases complete
+**Overall**: 4 / 6 phases complete
 
 ---
 
@@ -36,11 +36,11 @@ Phase 6 [          ] 0%
 | Metric | Value |
 |--------|-------|
 | Requirements total | 61 |
-| Requirements complete | 33 |
+| Requirements complete | 39 |
 | Phases total | 6 |
-| Phases complete | 3 |
-| Plans written | 13 |
-| Plans complete | 13 |
+| Phases complete | 4 |
+| Plans written | 16 |
+| Plans complete | 16 |
 
 ---
 
@@ -69,12 +69,16 @@ Phase 6 [          ] 0%
 - None
 
 ### Notes for Next Session
-- Phase 3 is COMPLETE. Start Phase 4: `/gsd:plan-phase 4`
-- Phase 4 covers 6 requirements (FUND-01 through FUND-06): Piotroski F-Score, Altman Z-Score model selection, Quality of Earnings (CFO/NI), Margin of Safety, Combined Fundamental Score, per-tier gate enforcement
-- Phase 4 depends on Phase 1 only — can be built without Phase 2/3 at runtime
+- Phase 4 COMPLETE: all 3 plans executed — edgar_extended.py, piotroski.py, altman.py, quality.py, engine.py
+- Phase 5 covers 12 requirements (REC-01 through REC-08, REAS-01 through REAS-04): go/no-go matrix, structure selection, Kelly sizing, four-scenario P&L, narrative paragraphs
+- Phase 5 depends on Phase 2 (analytics), Phase 3 (scanner), Phase 4 (fundamentals)
+- Altman Z': default for all public equity with market price (manufacturer distinction not implemented per PRD §10)
+- Altman Z'': fallback when no market price available (BVE/TL instead of MVE/TL)
+- Per-tier gates: Tier 3 (combined>55, Altman≥1.23, Piotroski≥5), Tier 4 (>65, ≥2.50, ≥6), Tier 5 (>75, ≥2.99, ≥7)
 - FRED API key not yet configured — fetchers default gracefully (0.05 risk-free rate)
 - Schwab credentials not yet configured — user must set SCHWAB_APP_KEY + SCHWAB_APP_SECRET, complete OAuth on first run
-- ScanOrchestrator singleton available via scanner.orchestrator.get_orchestrator() — Streamlit never imports stage1/stage2 directly
+- ScanOrchestrator singleton available via scanner.orchestrator.get_orchestrator()
+- run_fundamentals() is the single public entry point for Phase 5 and UI
 
 ---
 
@@ -82,4 +86,4 @@ Phase 6 [          ] 0%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: `/gsd:plan-phase 4` to plan Phase 4: Fundamentals Engine
+**Next action**: Plan Phase 5 — Recommendations & Reasoning (`/gsd:plan-phase 5`)

@@ -5,7 +5,7 @@
 - [x] **Phase 1: Data Infrastructure** - App launches, fetches and caches all data sources, manages the ticker universe
 - [x] **Phase 2: Analytics Engine** - App computes all volatility estimators, IV surface, VRP signals, and composite score
 - [x] **Phase 3: Scanner Pipeline** - App runs two-stage scan across the full universe within performance budgets
-- [ ] **Phase 4: Fundamentals Engine** - App scores every Stage 2 candidate on Piotroski, Altman, quality-of-earnings, and margin-of-safety
+- [x] **Phase 4: Fundamentals Engine** - App scores every Stage 2 candidate on Piotroski, Altman, quality-of-earnings, and margin-of-safety
 - [ ] **Phase 5: Recommendations & Reasoning** - App produces complete, self-explaining trade plans with four-scenario P&L, Kelly sizing, and narrative paragraphs
 - [ ] **Phase 6: UI & Portfolio Monitor** - App surfaces everything through a coherent Streamlit interface with portfolio correlation monitoring
 
@@ -107,9 +107,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Extended EDGAR fetcher (prior-year fields) + Piotroski F-Score 9-factor computation (fundamentals/edgar_extended.py, fundamentals/piotroski.py)
-- [ ] 04-02-PLAN.md — Altman Z-Score model selection (Z/Z'/Z'') + Quality of Earnings + Margin of Safety 6-factor score (fundamentals/altman.py, fundamentals/quality.py)
-- [ ] 04-03-PLAN.md — Fundamentals engine orchestrator: Combined Score + per-tier gate enforcement (fundamentals/engine.py)
+- [x] 04-01-PLAN.md — Extended EDGAR fetcher (prior-year fields) + Piotroski F-Score 9-factor computation (fundamentals/edgar_extended.py, fundamentals/piotroski.py)
+- [x] 04-02-PLAN.md — Altman Z-Score model selection (Z/Z'/Z'') + Quality of Earnings + Margin of Safety 6-factor score (fundamentals/altman.py, fundamentals/quality.py)
+- [x] 04-03-PLAN.md — Fundamentals engine orchestrator: Combined Score + per-tier gate enforcement (fundamentals/engine.py)
 
 ---
 
@@ -159,7 +159,7 @@ Plans:
 | 1. Data Infrastructure | 4/4 | Complete | 2026-03-07 |
 | 2. Analytics Engine | 6/6 | Complete | 2026-03-07 |
 | 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
-| 4. Fundamentals Engine | 0/3 | Planned | - |
+| 4. Fundamentals Engine | 3/3 | Complete | 2026-03-07 |
 | 5. Recommendations & Reasoning | 0/? | Not started | - |
 | 6. UI & Portfolio Monitor | 0/? | Not started | - |
 
