@@ -77,8 +77,8 @@
 - [ ] **UI-01**: Scanner Dashboard displays all Stage 2 results in a sortable/filterable table (Ticker, Tier, Score, IV30, VRP, VRP%, IVP, Persistence, Excess VRP, Skew, EM Ratio, Earnings, GO/NO-GO)
 - [ ] **UI-02**: Clicking any row opens a full Ticker Analysis page with recommendation card + supplementary charts (IV term structure, VRP history, skew chart, scenario P&L bar, GEX history)
 - [ ] **UI-03**: Custom Ticker Lookup page runs full Stage 2 analysis on any user-entered ticker on demand
-- [ ] **UI-04**: Configuration sidebar lets user set portfolio value, position limits, screening thresholds, slippage factors, universe tiers, and view Schwab connection status
-- [ ] **UI-05**: Regime banner displays at top of every page: VIX level, VVIX, regime label (color-coded), GEX, T-bill rate, regime size multiplier
+- [x] **UI-04**: Configuration sidebar lets user set portfolio value, position limits, screening thresholds, slippage factors, universe tiers, and view Schwab connection status
+- [x] **UI-05**: Regime banner displays at top of every page: VIX level, VVIX, regime label (color-coded), GEX, T-bill rate, regime size multiplier
 - [ ] **UI-06**: User can export scanner results to CSV
 
 ---
@@ -156,8 +156,8 @@
 | UI-01 | Phase 6: UI & Portfolio Monitor | Pending |
 | UI-02 | Phase 6: UI & Portfolio Monitor | Pending |
 | UI-03 | Phase 6: UI & Portfolio Monitor | Pending |
-| UI-04 | Phase 6: UI & Portfolio Monitor | Pending |
-| UI-05 | Phase 6: UI & Portfolio Monitor | Pending |
+| UI-04 | Phase 6: UI & Portfolio Monitor | Complete |
+| UI-05 | Phase 6: UI & Portfolio Monitor | Complete |
 | UI-06 | Phase 6: UI & Portfolio Monitor | Pending |
 | PORT-01 | Phase 6: UI & Portfolio Monitor | Pending |
 | PORT-02 | Phase 6: UI & Portfolio Monitor | Pending |

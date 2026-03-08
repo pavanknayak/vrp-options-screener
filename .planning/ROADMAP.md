@@ -158,7 +158,7 @@ Plans:
 **Plans**: 7 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Shared UI components: regime banner (ui/components/regime_banner.py) + config sidebar (ui/components/config_sidebar.py)
+- [x] 06-01-PLAN.md — Shared UI components: regime banner (ui/components/regime_banner.py) + config sidebar (ui/components/config_sidebar.py)
 - [ ] 06-02-PLAN.md — Scanner Dashboard page: sortable/filterable 13-column table, scan triggers, CSV export (ui/pages/dashboard.py)
 - [ ] 06-03-PLAN.md — Ticker Analysis page + 5 Plotly chart builders: recommendation card + IV term structure, VRP history, skew, scenario P&L, GEX history (ui/pages/ticker_analysis.py, ui/charts.py)
 - [ ] 06-04-PLAN.md — Custom Ticker Lookup page: on-demand full Stage 2 analysis (ui/pages/custom_lookup.py)
@@ -177,7 +177,7 @@ Plans:
 | 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
 | 4. Fundamentals Engine | 3/3 | Complete | 2026-03-07 |
 | 5. Recommendations & Reasoning | 5/5 | Complete | 2026-03-08 |
-| 6. UI & Portfolio Monitor | 0/7 | Not started | - |
+| 6. UI & Portfolio Monitor | 1/7 | In progress | - |
 
 ---
 

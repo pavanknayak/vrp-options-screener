@@ -4,7 +4,7 @@
 
 **Core Value**: Surface statistically-significant VRP opportunities with complete, self-explaining trade plans — including written reasoning, four-scenario P&L, and Kelly-sized positions — across ~1,485 US-listed tickers, so the user spends time deciding on trades rather than hunting for them.
 
-**Current Focus**: Phase 5 — Recommendations & Reasoning
+**Current Focus**: Phase 6 — UI & Portfolio Monitor
 
 ---
 
@@ -12,9 +12,9 @@
 
 | Field | Value |
 |-------|-------|
-| Current Phase | Phase 5: Recommendations & Reasoning |
-| Current Plan | 05-05 complete — Phase 5 COMPLETE |
-| Status | Phase 5 complete (5/5 plans complete) — next: Phase 6 |
+| Current Phase | Phase 6: UI & Portfolio Monitor |
+| Current Plan | 06-02 complete (2/7 plans complete) |
+| Status | In progress |
 | Last Updated | 2026-03-08 |
 
 **Progress**:
@@ -24,10 +24,10 @@ Phase 2 [##########] 100% ✓
 Phase 3 [##########] 100% ✓
 Phase 4 [##########] 100% ✓
 Phase 5 [##########] 100% ✓
-Phase 6 [          ] 0%
+Phase 6 [##        ] 29%
 ```
 
-**Overall**: 5 / 6 phases complete
+**Overall**: 5 / 6 phases complete (Phase 6: 2/7 plans)
 
 ---
 
@@ -40,7 +40,7 @@ Phase 6 [          ] 0%
 | Phases total | 6 |
 | Phases complete | 5 |
 | Plans written | 21 |
-| Plans complete | 19 |
+| Plans complete | 21 |
 
 ---
 
@@ -61,6 +61,7 @@ Phase 6 [          ] 0%
 - 05-04 COMPLETE: build_recommendation_card(); RecommendationCard dataclass; three data-driven narrative paragraphs; broker-ready order text for CSP/Spread/Collar
 - 05-05 COMPLETE: run_recommendation() orchestrator; chains gonogo->structures->pnl->card in dependency order; never raises; always builds card for UI even on gonogo fail
 - Fundamentals error key causes HARD-06 and SOFT-08 to pass through with warning (not block)
+- 06-01 COMPLETE: render_regime_banner() + render_config_sidebar(); regime label/color/multiplier delegated to analytics.regime.detect_regime(); config persisted to config.json; REGIME_COLORS includes VOL_UNSTABLE (purple)
 
 ### Architecture Notes
 - Stack: Python 3.11+, Streamlit (localhost), SQLite, schwab-py, yfinance, FRED API, SEC EDGAR, NumPy/pandas/scipy, arch (GARCH), scikit-learn, Plotly, APScheduler
@@ -77,6 +78,7 @@ Phase 6 [          ] 0%
 ### Notes for Next Session
 - Phase 4 COMPLETE: all 3 plans executed — edgar_extended.py, piotroski.py, altman.py, quality.py, engine.py
 - Phase 5 COMPLETE: all 5 plans executed — gonogo.py, structures.py, pnl.py, card.py, engine.py
+- Phase 6 in progress: 06-01 complete — shared UI components (regime banner + config sidebar)
 - Phase 6 is the final phase: Streamlit UI + Portfolio Monitor
 - Altman Z': default for all public equity with market price (manufacturer distinction not implemented per PRD §10)
 - Altman Z'': fallback when no market price available (BVE/TL instead of MVE/TL)
@@ -92,4 +94,4 @@ Phase 6 [          ] 0%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: Begin Phase 6 — UI & Portfolio Monitor (Streamlit dashboard, ticker detail, custom lookup, configuration, portfolio correlation monitor)
+**Next action**: Continue Phase 6 — execute 06-02 (Scanner Dashboard page)
