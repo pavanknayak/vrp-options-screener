@@ -44,7 +44,7 @@
 - [ ] **SCAN-05**: App skips any ticker with earnings within the DTE window during Stage 1 pre-filter
 
 ### RECOMMEND — Trade Recommendation Engine
-- [ ] **REC-01**: App evaluates each Stage 2 candidate through a 21-point go/no-go matrix with hard disqualifiers (statistical significance, earnings, EV ≤ 0, VoV Z > 2.5, Crisis regime, Altman Z distress, jump% > 50%, China/crypto structure bans)
+- [x] **REC-01**: App evaluates each Stage 2 candidate through a 21-point go/no-go matrix with hard disqualifiers (statistical significance, earnings, EV ≤ 0, VoV Z > 2.5, Crisis regime, Altman Z distress, jump% > 50%, China/crypto structure bans)
 - [ ] **REC-02**: App selects the appropriate trade structure per tier and asset-class mandate (CSP, Spread, Collar, Strangle, Condor, Covered Call)
 - [ ] **REC-03**: App selects specific strikes by Kelly-optimal delta (base 25Δ ± VRP and VoV adjustments)
 - [ ] **REC-04**: App selects DTE considering FOMC calendar (avoid 2 days pre-FOMC; prefer 1 day post-FOMC)
@@ -141,7 +141,7 @@
 | FUND-04 | Phase 4: Fundamentals Engine | Pending |
 | FUND-05 | Phase 4: Fundamentals Engine | Pending |
 | FUND-06 | Phase 4: Fundamentals Engine | Pending |
-| REC-01 | Phase 5: Recommendations & Reasoning | Pending |
+| REC-01 | Phase 5: Recommendations & Reasoning | Complete |
 | REC-02 | Phase 5: Recommendations & Reasoning | Pending |
 | REC-03 | Phase 5: Recommendations & Reasoning | Pending |
 | REC-04 | Phase 5: Recommendations & Reasoning | Pending |

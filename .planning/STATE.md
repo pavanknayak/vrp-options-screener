@@ -13,9 +13,9 @@
 | Field | Value |
 |-------|-------|
 | Current Phase | Phase 5: Recommendations & Reasoning |
-| Current Plan | Phase 4 complete — Phase 5 planning next |
-| Status | Phase 5 not started |
-| Last Updated | 2026-03-07 |
+| Current Plan | 05-01 complete — next: 05-02 (Structure/strike/DTE selection) |
+| Status | Phase 5 in progress (1/5 plans complete) |
+| Last Updated | 2026-03-08 |
 
 **Progress**:
 ```
@@ -23,7 +23,7 @@ Phase 1 [##########] 100% ✓
 Phase 2 [##########] 100% ✓
 Phase 3 [##########] 100% ✓
 Phase 4 [##########] 100% ✓
-Phase 5 [          ] 0%
+Phase 5 [##        ] 20%
 Phase 6 [          ] 0%
 ```
 
@@ -39,8 +39,8 @@ Phase 6 [          ] 0%
 | Requirements complete | 39 |
 | Phases total | 6 |
 | Phases complete | 4 |
-| Plans written | 16 |
-| Plans complete | 16 |
+| Plans written | 21 |
+| Plans complete | 17 |
 
 ---
 
@@ -55,6 +55,8 @@ Phase 6 [          ] 0%
 - 25% fractional Kelly with regime × VoV × GEX stacked multipliers
 - Crypto ETFs: Spread/Collar only (no CSP); China ADRs: Spread/Collar only
 - Phase 4 (Fundamentals) depends on Phase 1 only — can be built in parallel with Phase 2/3
+- 05-01 COMPLETE: evaluate_gonogo() with GoNoGoResult; 21-point fail-fast matrix; HARD-01..09 + SOFT-01..12
+- Fundamentals error key causes HARD-06 and SOFT-08 to pass through with warning (not block)
 
 ### Architecture Notes
 - Stack: Python 3.11+, Streamlit (localhost), SQLite, schwab-py, yfinance, FRED API, SEC EDGAR, NumPy/pandas/scipy, arch (GARCH), scikit-learn, Plotly, APScheduler
@@ -86,4 +88,4 @@ Phase 6 [          ] 0%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: Plan Phase 5 — Recommendations & Reasoning (`/gsd:plan-phase 5`)
+**Next action**: Execute Phase 5 Plan 02 — Structure/strike/DTE selection (recommendations/structures.py)
