@@ -62,6 +62,7 @@ Phase 6 [##        ] 29%
 - 05-05 COMPLETE: run_recommendation() orchestrator; chains gonogo->structures->pnl->card in dependency order; never raises; always builds card for UI even on gonogo fail
 - Fundamentals error key causes HARD-06 and SOFT-08 to pass through with warning (not block)
 - 06-01 COMPLETE: render_regime_banner() + render_config_sidebar(); regime label/color/multiplier delegated to analytics.regime.detect_regime(); config persisted to config.json; REGIME_COLORS includes VOL_UNSTABLE (purple)
+- 06-02 COMPLETE: render_dashboard() + _build_dataframe(); 13-column sortable/filterable table; GO/NO-GO color styling; CSV export via st.download_button; row selection via st.dataframe(on_select='rerun'); scan triggers via _trigger_scan(mode) writing to session_state
 
 ### Architecture Notes
 - Stack: Python 3.11+, Streamlit (localhost), SQLite, schwab-py, yfinance, FRED API, SEC EDGAR, NumPy/pandas/scipy, arch (GARCH), scikit-learn, Plotly, APScheduler
@@ -78,7 +79,7 @@ Phase 6 [##        ] 29%
 ### Notes for Next Session
 - Phase 4 COMPLETE: all 3 plans executed — edgar_extended.py, piotroski.py, altman.py, quality.py, engine.py
 - Phase 5 COMPLETE: all 5 plans executed — gonogo.py, structures.py, pnl.py, card.py, engine.py
-- Phase 6 in progress: 06-01 complete — shared UI components (regime banner + config sidebar)
+- Phase 6 in progress: 06-02 complete — Scanner Dashboard page (ui/pages/dashboard.py)
 - Phase 6 is the final phase: Streamlit UI + Portfolio Monitor
 - Altman Z': default for all public equity with market price (manufacturer distinction not implemented per PRD §10)
 - Altman Z'': fallback when no market price available (BVE/TL instead of MVE/TL)
@@ -94,4 +95,4 @@ Phase 6 [##        ] 29%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: Continue Phase 6 — execute 06-02 (Scanner Dashboard page)
+**Next action**: Continue Phase 6 — execute 06-03 (Ticker Analysis page + 5 Plotly chart builders)
