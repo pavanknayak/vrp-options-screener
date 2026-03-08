@@ -132,8 +132,8 @@ Plans:
 
 Plans:
 - [x] 05-01-PLAN.md — 21-point go/no-go matrix: recommendations/gonogo.py (GoNoGoResult, evaluate_gonogo)
-- [ ] 05-02-PLAN.md — Structure/strike/DTE selection: recommendations/structures.py (StructureResult, select_structure, select_strikes)
-- [ ] 05-03-PLAN.md — P&L scenarios + slippage EV + Kelly sizing: recommendations/pnl.py (ScenarioPnL, PnLResult, compute_*)
+- [x] 05-02-PLAN.md — Structure/strike/DTE selection: recommendations/structures.py (StructureResult, select_structure, select_strikes)
+- [x] 05-03-PLAN.md — P&L scenarios + slippage EV + Kelly sizing: recommendations/pnl.py (ScenarioPnL, PnLResult, compute_*)
 - [ ] 05-04-PLAN.md — Recommendation card assembly + narrative paragraphs + order text: recommendations/card.py
 - [ ] 05-05-PLAN.md — Orchestrator entry point: recommendations/engine.py (run_recommendation)
 
@@ -167,7 +167,7 @@ Plans:
 | 2. Analytics Engine | 6/6 | Complete | 2026-03-07 |
 | 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
 | 4. Fundamentals Engine | 3/3 | Complete | 2026-03-07 |
-| 5. Recommendations & Reasoning | 1/5 | In progress | - |
+| 5. Recommendations & Reasoning | 3/5 | In progress | - |
 | 6. UI & Portfolio Monitor | 0/? | Not started | - |
 
 ---

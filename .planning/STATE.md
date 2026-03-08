@@ -13,8 +13,8 @@
 | Field | Value |
 |-------|-------|
 | Current Phase | Phase 5: Recommendations & Reasoning |
-| Current Plan | 05-01 complete — next: 05-02 (Structure/strike/DTE selection) |
-| Status | Phase 5 in progress (1/5 plans complete) |
+| Current Plan | 05-03 complete — next: 05-04 (Recommendation card assembly + narrative paragraphs) |
+| Status | Phase 5 in progress (3/5 plans complete) |
 | Last Updated | 2026-03-08 |
 
 **Progress**:
@@ -23,7 +23,7 @@ Phase 1 [##########] 100% ✓
 Phase 2 [##########] 100% ✓
 Phase 3 [##########] 100% ✓
 Phase 4 [##########] 100% ✓
-Phase 5 [##        ] 20%
+Phase 5 [######    ] 60%
 Phase 6 [          ] 0%
 ```
 
@@ -52,10 +52,12 @@ Phase 6 [          ] 0%
 - SQLite TTL cache: options 15 min, OHLCV 1 hr, fundamentals 24 hr, FRED 6 hr, earnings 12 hr
 - Ensemble RV = mean(HAR-RV, GARCH-GJR, EWMA)
 - Composite VRP score 0–100 weighted sum of 12 signals
-- 25% fractional Kelly with regime × VoV × GEX stacked multipliers
+- 25% fractional Kelly with regime × VoV × GEX stacked multipliers, clamped to [max_pos/4, max_pos]
 - Crypto ETFs: Spread/Collar only (no CSP); China ADRs: Spread/Collar only
 - Phase 4 (Fundamentals) depends on Phase 1 only — can be built in parallel with Phase 2/3
 - 05-01 COMPLETE: evaluate_gonogo() with GoNoGoResult; 21-point fail-fast matrix; HARD-01..09 + SOFT-01..12
+- 05-02 COMPLETE: select_structure(), select_strikes(), StructureResult; FOMC-aware DTE selection; Kelly-optimal delta
+- 05-03 COMPLETE: compute_slippage_ev() mid*0.75; compute_pnl_scenarios() 4-scenario P&L; compute_kelly_size() 0.25 base * regime*VoV*GEX multipliers
 - Fundamentals error key causes HARD-06 and SOFT-08 to pass through with warning (not block)
 
 ### Architecture Notes
@@ -88,4 +90,4 @@ Phase 6 [          ] 0%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: Execute Phase 5 Plan 02 — Structure/strike/DTE selection (recommendations/structures.py)
+**Next action**: Execute Phase 5 Plan 04 — Recommendation card assembly + narrative paragraphs (recommendations/card.py)
