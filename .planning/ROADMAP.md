@@ -155,7 +155,16 @@ Plans:
 5. User can manually enter open positions in the Portfolio Monitor, and the app displays the 60-day pairwise correlation matrix with pairs flagged at rho > 0.70, 1d 99% CVaR, short-vol exposure percentage, and tail hedge recommendation.
 6. User can export the scanner results table to a CSV file from the dashboard with one click.
 
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Shared UI components: regime banner (ui/components/regime_banner.py) + config sidebar (ui/components/config_sidebar.py)
+- [ ] 06-02-PLAN.md — Scanner Dashboard page: sortable/filterable 13-column table, scan triggers, CSV export (ui/pages/dashboard.py)
+- [ ] 06-03-PLAN.md — Ticker Analysis page + 5 Plotly chart builders: recommendation card + IV term structure, VRP history, skew, scenario P&L, GEX history (ui/pages/ticker_analysis.py, ui/charts.py)
+- [ ] 06-04-PLAN.md — Custom Ticker Lookup page: on-demand full Stage 2 analysis (ui/pages/custom_lookup.py)
+- [ ] 06-05-PLAN.md — Portfolio Monitor: SQLite position persistence + correlation matrix + CVaR + short-vol exposure (portfolio/db.py, ui/pages/portfolio_monitor.py)
+- [ ] 06-06-PLAN.md — Settings page: full config + universe tier management + Schwab status (ui/pages/settings.py)
+- [ ] 06-07-PLAN.md — App entry point: st.Page/st.navigation wiring, startup init, APScheduler start (app.py)
 
 ---
 
@@ -168,7 +177,7 @@ Plans:
 | 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
 | 4. Fundamentals Engine | 3/3 | Complete | 2026-03-07 |
 | 5. Recommendations & Reasoning | 5/5 | Complete | 2026-03-08 |
-| 6. UI & Portfolio Monitor | 0/? | Not started | - |
+| 6. UI & Portfolio Monitor | 0/7 | Not started | - |
 
 ---
 
