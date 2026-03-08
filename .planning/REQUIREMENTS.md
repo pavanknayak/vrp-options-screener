@@ -51,13 +51,13 @@
 - [ ] **REC-05**: App computes slippage-adjusted expected value (per-leg bid-ask slippage × 0.75 factor)
 - [ ] **REC-06**: App generates four-scenario P&L (Bull/Base/Bear/Crash) with probability-weighted EV; crypto ETFs use wider shocks (±50% crash)
 - [ ] **REC-07**: App sizes positions via 25% fractional Kelly with stacked multipliers: regime × VoV × GEX sign
-- [ ] **REC-08**: App outputs a complete recommendation card: structure, specific strikes, DTE, net credit, max loss, breakeven, profit target, hard stop, roll trigger, 4-scenario P&L, Kelly size, and manual order text
+- [x] **REC-08**: App outputs a complete recommendation card: structure, specific strikes, DTE, net credit, max loss, breakeven, profit target, hard stop, roll trigger, 4-scenario P&L, Kelly size, and manual order text
 
 ### REASONING — Written Trade Narratives
-- [ ] **REAS-01**: App generates Paragraph 1 — why the premium exists (which signals are elevated, by how much, vs history)
-- [ ] **REAS-02**: App generates Paragraph 2 — why to enter now vs. wait (VRP momentum direction, FOMC proximity, GEX context, VoV stability)
-- [ ] **REAS-03**: App generates Paragraph 3 — what specifically could cause the trade to lose (earnings risk, binary events, correlation, jump risk, macro regime)
-- [ ] **REAS-04**: App outputs manual order text the user can type directly into their broker
+- [x] **REAS-01**: App generates Paragraph 1 — why the premium exists (which signals are elevated, by how much, vs history)
+- [x] **REAS-02**: App generates Paragraph 2 — why to enter now vs. wait (VRP momentum direction, FOMC proximity, GEX context, VoV stability)
+- [x] **REAS-03**: App generates Paragraph 3 — what specifically could cause the trade to lose (earnings risk, binary events, correlation, jump risk, macro regime)
+- [x] **REAS-04**: App outputs manual order text the user can type directly into their broker
 
 ### FUND — Fundamentals & Forensic Accounting
 - [ ] **FUND-01**: App computes Piotroski F-Score (9 binary factors from EDGAR: ROA, ΔROA, CFO, accrual, leverage, liquidity, dilution, margin, asset turnover)
@@ -148,11 +148,11 @@
 | REC-05 | Phase 5: Recommendations & Reasoning | Pending |
 | REC-06 | Phase 5: Recommendations & Reasoning | Pending |
 | REC-07 | Phase 5: Recommendations & Reasoning | Pending |
-| REC-08 | Phase 5: Recommendations & Reasoning | Pending |
-| REAS-01 | Phase 5: Recommendations & Reasoning | Pending |
-| REAS-02 | Phase 5: Recommendations & Reasoning | Pending |
-| REAS-03 | Phase 5: Recommendations & Reasoning | Pending |
-| REAS-04 | Phase 5: Recommendations & Reasoning | Pending |
+| REC-08 | Phase 5: Recommendations & Reasoning | Complete |
+| REAS-01 | Phase 5: Recommendations & Reasoning | Complete |
+| REAS-02 | Phase 5: Recommendations & Reasoning | Complete |
+| REAS-03 | Phase 5: Recommendations & Reasoning | Complete |
+| REAS-04 | Phase 5: Recommendations & Reasoning | Complete |
 | UI-01 | Phase 6: UI & Portfolio Monitor | Pending |
 | UI-02 | Phase 6: UI & Portfolio Monitor | Pending |
 | UI-03 | Phase 6: UI & Portfolio Monitor | Pending |

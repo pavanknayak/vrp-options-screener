@@ -13,8 +13,8 @@
 | Field | Value |
 |-------|-------|
 | Current Phase | Phase 5: Recommendations & Reasoning |
-| Current Plan | 05-03 complete — next: 05-04 (Recommendation card assembly + narrative paragraphs) |
-| Status | Phase 5 in progress (3/5 plans complete) |
+| Current Plan | 05-04 complete — next: 05-05 (Recommendations orchestrator engine.py) |
+| Status | Phase 5 in progress (4/5 plans complete) |
 | Last Updated | 2026-03-08 |
 
 **Progress**:
@@ -23,7 +23,7 @@ Phase 1 [##########] 100% ✓
 Phase 2 [##########] 100% ✓
 Phase 3 [##########] 100% ✓
 Phase 4 [##########] 100% ✓
-Phase 5 [######    ] 60%
+Phase 5 [########  ] 80%
 Phase 6 [          ] 0%
 ```
 
@@ -40,7 +40,7 @@ Phase 6 [          ] 0%
 | Phases total | 6 |
 | Phases complete | 4 |
 | Plans written | 21 |
-| Plans complete | 17 |
+| Plans complete | 18 |
 
 ---
 
@@ -58,6 +58,7 @@ Phase 6 [          ] 0%
 - 05-01 COMPLETE: evaluate_gonogo() with GoNoGoResult; 21-point fail-fast matrix; HARD-01..09 + SOFT-01..12
 - 05-02 COMPLETE: select_structure(), select_strikes(), StructureResult; FOMC-aware DTE selection; Kelly-optimal delta
 - 05-03 COMPLETE: compute_slippage_ev() mid*0.75; compute_pnl_scenarios() 4-scenario P&L; compute_kelly_size() 0.25 base * regime*VoV*GEX multipliers
+- 05-04 COMPLETE: build_recommendation_card(); RecommendationCard dataclass; three data-driven narrative paragraphs; broker-ready order text for CSP/Spread/Collar
 - Fundamentals error key causes HARD-06 and SOFT-08 to pass through with warning (not block)
 
 ### Architecture Notes
@@ -90,4 +91,4 @@ Phase 6 [          ] 0%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: Execute Phase 5 Plan 04 — Recommendation card assembly + narrative paragraphs (recommendations/card.py)
+**Next action**: Execute Phase 5 Plan 05 — Recommendations orchestrator (recommendations/engine.py, run_recommendation entry point)
