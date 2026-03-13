@@ -7,7 +7,7 @@
 - [x] **Phase 3: Scanner Pipeline** - App runs two-stage scan across the full universe within performance budgets
 - [x] **Phase 4: Fundamentals Engine** - App scores every Stage 2 candidate on Piotroski, Altman, quality-of-earnings, and margin-of-safety
 - [x] **Phase 5: Recommendations & Reasoning** - App produces complete, self-explaining trade plans with four-scenario P&L, Kelly sizing, and narrative paragraphs
-- [ ] **Phase 6: UI & Portfolio Monitor** - App surfaces everything through a coherent Streamlit interface with portfolio correlation monitoring
+- [x] **Phase 6: UI & Portfolio Monitor** - App surfaces everything through a coherent Streamlit interface with portfolio correlation monitoring
 
 ---
 
@@ -164,7 +164,7 @@ Plans:
 - [x] 06-04-PLAN.md — Custom Ticker Lookup page: on-demand full Stage 2 analysis (ui/pages/custom_lookup.py)
 - [x] 06-05-PLAN.md — Portfolio Monitor: SQLite position persistence + correlation matrix + CVaR + short-vol exposure (portfolio/db.py, ui/pages/portfolio_monitor.py)
 - [x] 06-06-PLAN.md — Settings page: full config + universe tier management + Schwab status (ui/pages/settings.py)
-- [ ] 06-07-PLAN.md — App entry point: st.Page/st.navigation wiring, startup init, APScheduler start (app.py)
+- [x] 06-07-PLAN.md — App entry point: st.Page/st.navigation wiring, startup init, APScheduler start (app.py)
 
 ---
 
@@ -177,7 +177,7 @@ Plans:
 | 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
 | 4. Fundamentals Engine | 3/3 | Complete | 2026-03-07 |
 | 5. Recommendations & Reasoning | 5/5 | Complete | 2026-03-08 |
-| 6. UI & Portfolio Monitor | 5/7 plans with SUMMARY (06-04 now back-filled) | In progress | - |
+| 6. UI & Portfolio Monitor | 7/7 | Complete | 2026-03-12 |
 
 ---
 

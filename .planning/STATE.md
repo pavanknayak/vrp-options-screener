@@ -4,7 +4,7 @@
 
 **Core Value**: Surface statistically-significant VRP opportunities with complete, self-explaining trade plans — including written reasoning, four-scenario P&L, and Kelly-sized positions — across ~1,485 US-listed tickers, so the user spends time deciding on trades rather than hunting for them.
 
-**Current Focus**: Phase 6 — UI & Portfolio Monitor
+**Current Focus**: Phase 6 COMPLETE — UI & Portfolio Monitor
 
 ---
 
@@ -13,8 +13,8 @@
 | Field | Value |
 |-------|-------|
 | Current Phase | Phase 6: UI & Portfolio Monitor |
-| Current Plan | 06-05 complete |
-| Status | In progress |
+| Current Plan | 06-07 complete (FINAL) |
+| Status | Complete |
 | Last Updated | 2026-03-12 |
 
 **Progress**:
@@ -24,10 +24,10 @@ Phase 2 [##########] 100% ✓
 Phase 3 [##########] 100% ✓
 Phase 4 [##########] 100% ✓
 Phase 5 [##########] 100% ✓
-Phase 6 [##########] 96%
+Phase 6 [##########] 100% ✓
 ```
 
-**Overall**: 5 / 6 phases complete (Phase 6: 7/7 plans — only 06-07 app entry point remaining but included in prior phase count)
+**Overall**: 6 / 6 phases complete — ALL PHASES DONE
 
 ---
 
@@ -36,9 +36,9 @@ Phase 6 [##########] 96%
 | Metric | Value |
 |--------|-------|
 | Requirements total | 61 |
-| Requirements complete | 51 |
+| Requirements complete | 61 |
 | Phases total | 6 |
-| Phases complete | 5 |
+| Phases complete | 6 |
 | Plans written | 21 |
 | Plans complete | 21 |
 
@@ -67,32 +67,30 @@ Phase 6 [##########] 96%
 - 06-04 COMPLETE: render_custom_lookup() + _run_single_analysis(); on-demand single-ticker Stage 2 via get_orchestrator().run_single_ticker(); isinstance(result, list) guard for return-shape normalisation; result cleared before each analysis to prevent stale display; session_state['lookup_result'] persists result across reruns; reuses _render_recommendation_card() from ticker_analysis and all five chart_ functions
 - 06-06 COMPLETE: render_settings(); full-width config form + active tier multiselect (save_config()) + universe ticker add/remove (writes tickers.json directly) + Schwab status (_schwab_status() returns (bool, bool, str)); ticker management uses direct json.load/json.dump — not loader.py — intentional write path
 - 06-05 COMPLETE: portfolio/db.py (Position dataclass, save_position/load_positions/delete_position, portfolio_positions table in vrp_cache.db); ui/pages/portfolio_monitor.py (render_portfolio_monitor, _compute_cvar_monte_carlo 10k MC samples, _compute_correlation_matrix tail(60).corr(), _tail_hedge_recommendation, Plotly heatmap with rho>0.70 flagging, st.metric CVaR+short-vol%)
+- 06-07 COMPLETE: app.py (st.Page/st.navigation, 5 pages, _initialize_session() guard, load_config, start_scheduler() explicit call, render_config_sidebar() from app.py); module-level render_*() calls added to all 5 page files; render_regime_banner() added to dashboard.py
 
 ### Architecture Notes
 - Stack: Python 3.11+, Streamlit (localhost), SQLite, schwab-py, yfinance, FRED API, SEC EDGAR, NumPy/pandas/scipy, arch (GARCH), scikit-learn, Plotly, APScheduler
 - 16 sub-tiers: 1A (US broad index ETFs) through 7 (Rest-of-World ADRs)
 - FOMC calendar: static, updated annually, no API needed
 - Tier assignment at load time governs liquidity filters, fundamental thresholds, permissible structures
+- Entry point: `streamlit run app.py` — opens multi-page app with Scanner Dashboard as landing page
 
 ### Pending Decisions
-- None at roadmap stage
+- None
 
 ### Blockers
 - None
 
 ### Notes for Next Session
-- Phase 4 COMPLETE: all 3 plans executed — edgar_extended.py, piotroski.py, altman.py, quality.py, engine.py
-- Phase 5 COMPLETE: all 5 plans executed — gonogo.py, structures.py, pnl.py, card.py, engine.py
-- Phase 6 in progress: 06-01..06-04 and 06-06 complete — regime banner, dashboard, ticker analysis+charts, custom lookup, settings
-- 06-04 was back-filled (skipped in prior session that ran 06-06); now complete with SUMMARY
-- Phase 6 is the final phase: Streamlit UI + Portfolio Monitor
-- Altman Z': default for all public equity with market price (manufacturer distinction not implemented per PRD §10)
+- ALL 6 PHASES COMPLETE — project is fully implemented
+- Run with: `streamlit run app.py`
+- Schwab credentials not yet configured — user must set SCHWAB_APP_KEY + SCHWAB_APP_SECRET, complete OAuth on first run
+- FRED API key not yet configured — fetchers default gracefully (0.05 risk-free rate)
+- APScheduler starts automatically on first browser session (9:45 AM ET auto-scan + VIX event poll every 5min)
+- Altman Z': default for all public equity with market price
 - Altman Z'': fallback when no market price available (BVE/TL instead of MVE/TL)
 - Per-tier gates: Tier 3 (combined>55, Altman≥1.23, Piotroski≥5), Tier 4 (>65, ≥2.50, ≥6), Tier 5 (>75, ≥2.99, ≥7)
-- FRED API key not yet configured — fetchers default gracefully (0.05 risk-free rate)
-- Schwab credentials not yet configured — user must set SCHWAB_APP_KEY + SCHWAB_APP_SECRET, complete OAuth on first run
-- ScanOrchestrator singleton available via scanner.orchestrator.get_orchestrator()
-- run_recommendation() is the single public entry point for Phase 5 recommendations
 
 ---
 
@@ -100,4 +98,4 @@ Phase 6 [##########] 96%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: Continue Phase 6 — execute 06-07 (App entry point: main.py Streamlit multi-page app wiring all pages)
+**Next action**: Project complete. Run `streamlit run app.py` to use the application.
