@@ -6,6 +6,7 @@ filterable 13-column table with row-click navigation and CSV export.
 import pandas as pd
 import streamlit as st
 from datetime import datetime
+from ui.components.regime_banner import render_regime_banner
 
 
 def _build_dataframe(results: list[dict]) -> pd.DataFrame:
@@ -41,6 +42,7 @@ def _build_dataframe(results: list[dict]) -> pd.DataFrame:
 
 def render_dashboard() -> None:
     """Render the Scanner Dashboard page."""
+    render_regime_banner()
     st.title("Scanner Dashboard")
 
     # --- Scan Status ---
@@ -179,3 +181,7 @@ def _trigger_scan(mode: str) -> None:
             st.success(f"Scan complete — {len(results or [])} results.")
         except Exception as exc:
             st.error(f"Scan failed: {exc}")
+
+
+# Module-level call required by Streamlit's st.Page file-execution model
+render_dashboard()

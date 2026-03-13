@@ -141,3 +141,7 @@ def render_ticker_analysis() -> None:
             st.dataframe(checks_df, use_container_width=True, hide_index=True)
         else:
             st.info("No go/no-go check detail available.")
+
+
+# Module-level call required by Streamlit's st.Page file-execution model
+render_ticker_analysis()
