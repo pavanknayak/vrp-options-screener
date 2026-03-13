@@ -163,7 +163,7 @@ Plans:
 - [ ] 06-03-PLAN.md — Ticker Analysis page + 5 Plotly chart builders: recommendation card + IV term structure, VRP history, skew, scenario P&L, GEX history (ui/pages/ticker_analysis.py, ui/charts.py)
 - [ ] 06-04-PLAN.md — Custom Ticker Lookup page: on-demand full Stage 2 analysis (ui/pages/custom_lookup.py)
 - [ ] 06-05-PLAN.md — Portfolio Monitor: SQLite position persistence + correlation matrix + CVaR + short-vol exposure (portfolio/db.py, ui/pages/portfolio_monitor.py)
-- [ ] 06-06-PLAN.md — Settings page: full config + universe tier management + Schwab status (ui/pages/settings.py)
+- [x] 06-06-PLAN.md — Settings page: full config + universe tier management + Schwab status (ui/pages/settings.py)
 - [ ] 06-07-PLAN.md — App entry point: st.Page/st.navigation wiring, startup init, APScheduler start (app.py)
 
 ---
@@ -177,7 +177,7 @@ Plans:
 | 3. Scanner Pipeline | 3/3 | Complete | 2026-03-07 |
 | 4. Fundamentals Engine | 3/3 | Complete | 2026-03-07 |
 | 5. Recommendations & Reasoning | 5/5 | Complete | 2026-03-08 |
-| 6. UI & Portfolio Monitor | 2/7 | In progress | - |
+| 6. UI & Portfolio Monitor | 6/7 | In progress | - |
 
 ---
 
