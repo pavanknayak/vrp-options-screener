@@ -63,6 +63,7 @@ Phase 6 [#########.] 86%
 - Fundamentals error key causes HARD-06 and SOFT-08 to pass through with warning (not block)
 - 06-01 COMPLETE: render_regime_banner() + render_config_sidebar(); regime label/color/multiplier delegated to analytics.regime.detect_regime(); config persisted to config.json; REGIME_COLORS includes VOL_UNSTABLE (purple)
 - 06-02 COMPLETE: render_dashboard() + _build_dataframe(); 13-column sortable/filterable table; GO/NO-GO color styling; CSV export via st.download_button; row selection via st.dataframe(on_select='rerun'); scan triggers via _trigger_scan(mode) writing to session_state
+- 06-03 COMPLETE: five Plotly chart builders in ui/charts.py (chart_iv_term_structure, chart_vrp_history, chart_skew, chart_scenario_pnl, chart_gex_history); render_ticker_analysis() reads session_state['selected_result']; recommendation card with GO/NO-GO header, 4-column trade params, 3-column risk levels, FOMC warning, three narratives, broker order text; 2-col chart grid (3 left, 2 right); go/no-go expander; analytics sub-dict fallback pattern
 - 06-06 COMPLETE: render_settings(); full-width config form + active tier multiselect (save_config()) + universe ticker add/remove (writes tickers.json directly) + Schwab status (_schwab_status() returns (bool, bool, str)); ticker management uses direct json.load/json.dump — not loader.py — intentional write path
 
 ### Architecture Notes
@@ -80,7 +81,7 @@ Phase 6 [#########.] 86%
 ### Notes for Next Session
 - Phase 4 COMPLETE: all 3 plans executed — edgar_extended.py, piotroski.py, altman.py, quality.py, engine.py
 - Phase 5 COMPLETE: all 5 plans executed — gonogo.py, structures.py, pnl.py, card.py, engine.py
-- Phase 6 in progress: 06-06 complete — Settings page (ui/pages/settings.py)
+- Phase 6 in progress: 06-03 and 06-06 complete — Ticker Analysis page + charts (ui/pages/ticker_analysis.py, ui/charts.py) and Settings page (ui/pages/settings.py)
 - Phase 6 is the final phase: Streamlit UI + Portfolio Monitor
 - Altman Z': default for all public equity with market price (manufacturer distinction not implemented per PRD §10)
 - Altman Z'': fallback when no market price available (BVE/TL instead of MVE/TL)
