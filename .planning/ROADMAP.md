@@ -162,7 +162,7 @@ Plans:
 - [x] 06-02-PLAN.md — Scanner Dashboard page: sortable/filterable 13-column table, scan triggers, CSV export (ui/pages/dashboard.py)
 - [x] 06-03-PLAN.md — Ticker Analysis page + 5 Plotly chart builders: recommendation card + IV term structure, VRP history, skew, scenario P&L, GEX history (ui/pages/ticker_analysis.py, ui/charts.py)
 - [x] 06-04-PLAN.md — Custom Ticker Lookup page: on-demand full Stage 2 analysis (ui/pages/custom_lookup.py)
-- [ ] 06-05-PLAN.md — Portfolio Monitor: SQLite position persistence + correlation matrix + CVaR + short-vol exposure (portfolio/db.py, ui/pages/portfolio_monitor.py)
+- [x] 06-05-PLAN.md — Portfolio Monitor: SQLite position persistence + correlation matrix + CVaR + short-vol exposure (portfolio/db.py, ui/pages/portfolio_monitor.py)
 - [x] 06-06-PLAN.md — Settings page: full config + universe tier management + Schwab status (ui/pages/settings.py)
 - [ ] 06-07-PLAN.md — App entry point: st.Page/st.navigation wiring, startup init, APScheduler start (app.py)
 

@@ -68,10 +68,10 @@
 - [ ] **FUND-06**: App enforces per-tier minimum fundamental scores and hard Altman Z disqualifiers before allowing CSP structure
 
 ### PORTFOLIO — Portfolio Correlation Monitor
-- [ ] **PORT-01**: User can manually enter open positions (ticker, structure, expiry, strikes) in the Portfolio Monitor page
-- [ ] **PORT-02**: App computes 60-day rolling pairwise correlation matrix for entered positions and flags pairs ρ > 0.70
-- [ ] **PORT-03**: App computes 1d 99% CVaR (Conditional VaR) for the portfolio via Monte Carlo
-- [ ] **PORT-04**: App displays portfolio-level short-vol exposure %, position count, and tail hedge recommendation
+- [x] **PORT-01**: User can manually enter open positions (ticker, structure, expiry, strikes) in the Portfolio Monitor page
+- [x] **PORT-02**: App computes 60-day rolling pairwise correlation matrix for entered positions and flags pairs ρ > 0.70
+- [x] **PORT-03**: App computes 1d 99% CVaR (Conditional VaR) for the portfolio via Monte Carlo
+- [x] **PORT-04**: App displays portfolio-level short-vol exposure %, position count, and tail hedge recommendation
 
 ### UI — User Interface
 - [ ] **UI-01**: Scanner Dashboard displays all Stage 2 results in a sortable/filterable table (Ticker, Tier, Score, IV30, VRP, VRP%, IVP, Persistence, Excess VRP, Skew, EM Ratio, Earnings, GO/NO-GO)
@@ -159,7 +159,7 @@
 | UI-04 | Phase 6: UI & Portfolio Monitor | Complete |
 | UI-05 | Phase 6: UI & Portfolio Monitor | Complete |
 | UI-06 | Phase 6: UI & Portfolio Monitor | Pending |
-| PORT-01 | Phase 6: UI & Portfolio Monitor | Pending |
-| PORT-02 | Phase 6: UI & Portfolio Monitor | Pending |
-| PORT-03 | Phase 6: UI & Portfolio Monitor | Pending |
-| PORT-04 | Phase 6: UI & Portfolio Monitor | Pending |
+| PORT-01 | Phase 6: UI & Portfolio Monitor | Complete |
+| PORT-02 | Phase 6: UI & Portfolio Monitor | Complete |
+| PORT-03 | Phase 6: UI & Portfolio Monitor | Complete |
+| PORT-04 | Phase 6: UI & Portfolio Monitor | Complete |

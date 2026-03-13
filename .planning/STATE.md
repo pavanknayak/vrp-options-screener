@@ -13,7 +13,7 @@
 | Field | Value |
 |-------|-------|
 | Current Phase | Phase 6: UI & Portfolio Monitor |
-| Current Plan | 06-04 complete (back-filled; 06-04 was skipped, now complete) |
+| Current Plan | 06-05 complete |
 | Status | In progress |
 | Last Updated | 2026-03-12 |
 
@@ -24,10 +24,10 @@ Phase 2 [##########] 100% ✓
 Phase 3 [##########] 100% ✓
 Phase 4 [##########] 100% ✓
 Phase 5 [##########] 100% ✓
-Phase 6 [#########.] 86%
+Phase 6 [##########] 96%
 ```
 
-**Overall**: 5 / 6 phases complete (Phase 6: 6/7 plans)
+**Overall**: 5 / 6 phases complete (Phase 6: 7/7 plans — only 06-07 app entry point remaining but included in prior phase count)
 
 ---
 
@@ -66,6 +66,7 @@ Phase 6 [#########.] 86%
 - 06-03 COMPLETE: five Plotly chart builders in ui/charts.py (chart_iv_term_structure, chart_vrp_history, chart_skew, chart_scenario_pnl, chart_gex_history); render_ticker_analysis() reads session_state['selected_result']; recommendation card with GO/NO-GO header, 4-column trade params, 3-column risk levels, FOMC warning, three narratives, broker order text; 2-col chart grid (3 left, 2 right); go/no-go expander; analytics sub-dict fallback pattern
 - 06-04 COMPLETE: render_custom_lookup() + _run_single_analysis(); on-demand single-ticker Stage 2 via get_orchestrator().run_single_ticker(); isinstance(result, list) guard for return-shape normalisation; result cleared before each analysis to prevent stale display; session_state['lookup_result'] persists result across reruns; reuses _render_recommendation_card() from ticker_analysis and all five chart_ functions
 - 06-06 COMPLETE: render_settings(); full-width config form + active tier multiselect (save_config()) + universe ticker add/remove (writes tickers.json directly) + Schwab status (_schwab_status() returns (bool, bool, str)); ticker management uses direct json.load/json.dump — not loader.py — intentional write path
+- 06-05 COMPLETE: portfolio/db.py (Position dataclass, save_position/load_positions/delete_position, portfolio_positions table in vrp_cache.db); ui/pages/portfolio_monitor.py (render_portfolio_monitor, _compute_cvar_monte_carlo 10k MC samples, _compute_correlation_matrix tail(60).corr(), _tail_hedge_recommendation, Plotly heatmap with rho>0.70 flagging, st.metric CVaR+short-vol%)
 
 ### Architecture Notes
 - Stack: Python 3.11+, Streamlit (localhost), SQLite, schwab-py, yfinance, FRED API, SEC EDGAR, NumPy/pandas/scipy, arch (GARCH), scikit-learn, Plotly, APScheduler
@@ -99,4 +100,4 @@ Phase 6 [#########.] 86%
 
 **To resume**: Read this file + `.planning/ROADMAP.md` + `.planning/REQUIREMENTS.md`
 
-**Next action**: Continue Phase 6 — execute 06-05 (Portfolio Monitor: position persistence, correlation matrix, CVaR) then 06-07 (App entry point)
+**Next action**: Continue Phase 6 — execute 06-07 (App entry point: main.py Streamlit multi-page app wiring all pages)
