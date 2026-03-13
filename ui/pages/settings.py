@@ -231,7 +231,3 @@ def render_settings() -> None:
             "3. Set environment variables: `SCHWAB_APP_KEY` and `SCHWAB_APP_SECRET`\n"
             "4. On first run, the app will open a browser for OAuth authorization\n"
         )
-
-
-# Module-level call required by Streamlit's st.Page file-execution model
-render_settings()

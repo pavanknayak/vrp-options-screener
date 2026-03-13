@@ -155,7 +155,7 @@ def render_dashboard() -> None:
             if r.get("ticker") == selected_ticker:
                 st.session_state["selected_result"] = r
                 break
-        st.switch_page("ui/pages/ticker_analysis.py")
+        st.switch_page(st.session_state["_pages"]["ticker_analysis"])
 
 
 def _trigger_scan(mode: str) -> None:
@@ -181,7 +181,3 @@ def _trigger_scan(mode: str) -> None:
             st.success(f"Scan complete — {len(results or [])} results.")
         except Exception as exc:
             st.error(f"Scan failed: {exc}")
-
-
-# Module-level call required by Streamlit's st.Page file-execution model
-render_dashboard()

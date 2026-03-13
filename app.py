@@ -54,38 +54,55 @@ def main() -> None:
     _initialize_session()
 
     # ---- Navigation Definition ----
-    # st.Page references file paths relative to the working directory.
-    # default=True marks the landing page.
+    # Use callable st.Page (pass render functions, not file paths) to avoid
+    # import side-effects: file-path pages run the whole module on import,
+    # triggering module-level render calls in files imported by other pages.
+    from ui.pages.dashboard import render_dashboard
+    from ui.pages.ticker_analysis import render_ticker_analysis
+    from ui.pages.custom_lookup import render_custom_lookup
+    from ui.pages.portfolio_monitor import render_portfolio_monitor
+    from ui.pages.settings import render_settings
+
     pages = [
         st.Page(
-            "ui/pages/dashboard.py",
+            render_dashboard,
             title="Scanner Dashboard",
             icon=":material/dashboard:",
             default=True,
         ),
         st.Page(
-            "ui/pages/ticker_analysis.py",
+            render_ticker_analysis,
             title="Ticker Analysis",
             icon=":material/candlestick_chart:",
         ),
         st.Page(
-            "ui/pages/custom_lookup.py",
+            render_custom_lookup,
             title="Custom Lookup",
             icon=":material/search:",
         ),
         st.Page(
-            "ui/pages/portfolio_monitor.py",
+            render_portfolio_monitor,
             title="Portfolio Monitor",
             icon=":material/pie_chart:",
         ),
         st.Page(
-            "ui/pages/settings.py",
+            render_settings,
             title="Settings",
             icon=":material/settings:",
         ),
     ]
 
     pg = st.navigation(pages)
+
+    # Store page objects in session state so individual pages can call
+    # st.switch_page(st.session_state["_pages"]["ticker_analysis"]) etc.
+    st.session_state["_pages"] = {
+        "dashboard": pages[0],
+        "ticker_analysis": pages[1],
+        "custom_lookup": pages[2],
+        "portfolio_monitor": pages[3],
+        "settings": pages[4],
+    }
 
     # ---- Shared Sidebar: Config Controls ----
     from ui.components.config_sidebar import render_config_sidebar

@@ -76,11 +76,12 @@ def render_config_sidebar() -> dict:
         )
         cfg["max_position_pct"] = st.slider(
             "Max Position % of Portfolio",
-            min_value=0.01, max_value=0.20,
-            value=float(cfg["max_position_pct"]), step=0.01,
-            format="%.0f%%",
+            min_value=1, max_value=20,
+            value=max(1, int(round(float(cfg["max_position_pct"]) * 100))),
+            step=1,
+            format="%d%%",
             key="cfg_max_position_pct",
-        )
+        ) / 100
         cfg["max_positions"] = int(st.number_input(
             "Max Simultaneous Positions",
             min_value=1, max_value=50,

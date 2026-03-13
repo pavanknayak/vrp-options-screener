@@ -125,7 +125,7 @@ def render_custom_lookup() -> None:
     if st.button("View in Ticker Analysis Page", key="btn_view_full"):
         st.session_state["selected_ticker"] = ticker_label
         st.session_state["selected_result"] = result
-        st.switch_page("ui/pages/ticker_analysis.py")
+        st.switch_page(st.session_state["_pages"]["ticker_analysis"])
 
     st.divider()
 
@@ -163,7 +163,3 @@ def render_custom_lookup() -> None:
             )
         else:
             st.info("No go/no-go check detail available.")
-
-
-# Module-level call required by Streamlit's st.Page file-execution model
-render_custom_lookup()

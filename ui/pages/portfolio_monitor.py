@@ -288,7 +288,3 @@ def render_portfolio_monitor() -> None:
     rec = _tail_hedge_recommendation(short_vol_pct, cvar, portfolio_value,
                                       corr if not corr.empty else pd.DataFrame())
     st.info(rec)
-
-
-# Module-level call required by Streamlit's st.Page file-execution model
-render_portfolio_monitor()
