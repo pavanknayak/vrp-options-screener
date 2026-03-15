@@ -62,6 +62,7 @@ def main() -> None:
     from ui.pages.custom_lookup import render_custom_lookup
     from ui.pages.portfolio_monitor import render_portfolio_monitor
     from ui.pages.settings import render_settings
+    from ui.pages.backtest import render_backtest
 
     pages = [
         st.Page(
@@ -90,6 +91,11 @@ def main() -> None:
             title="Settings",
             icon=":material/settings:",
         ),
+        st.Page(
+            render_backtest,
+            title="Backtester",
+            icon=":material/analytics:",
+        ),
     ]
 
     pg = st.navigation(pages)
@@ -102,6 +108,7 @@ def main() -> None:
         "custom_lookup": pages[2],
         "portfolio_monitor": pages[3],
         "settings": pages[4],
+        "backtest": pages[5],
     }
 
     # ---- Shared Sidebar: Config Controls ----
