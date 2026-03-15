@@ -3,8 +3,39 @@ import streamlit as st
 from ui.components.regime_banner import render_regime_banner
 from ui.charts import (
     chart_iv_term_structure, chart_vrp_history, chart_skew,
-    chart_scenario_pnl, chart_gex_history,
+    chart_scenario_pnl, chart_gex_history, chart_pnl_simulator,
 )
+
+
+def _render_score_explanation(signals: dict, composite_score: float) -> None:
+    """Render plain-language explanation of why the composite score is what it is."""
+    with st.expander("Why this score?", expanded=False):
+        st.caption("Each signal contributes to the overall score. ✓ = favorable, ✗ = unfavorable")
+
+        checks = [
+            ("IV Percentile", signals.get("ivp", 0), 0.60,
+             f"{signals.get('ivp', 0)*100:.0f}th percentile — options are {'unusually expensive' if signals.get('ivp', 0) > 0.6 else 'near normal'} right now"),
+            ("VRP Magnitude", signals.get("vrp_pctile", 0), 0.50,
+             f"Premium is at the {signals.get('vrp_pctile', 0)*100:.0f}th percentile of its 1-year history"),
+            ("VRP Persistence", signals.get("vrp_persist_30d", 0), 0.50,
+             f"VRP was positive {signals.get('vrp_persist_30d', 0)*100:.0f}% of the last 30 days"),
+            ("Statistical Significance", signals.get("vrp_zscore", 0), 1.0,
+             f"VRP is {signals.get('vrp_zscore', 0):.1f} standard deviations above its mean"),
+            ("Expected Move Ratio", signals.get("em_ratio", 1.0), 1.1,
+             f"Options price in {'more' if signals.get('em_ratio', 1) > 1 else 'less'} movement than historically realized (ratio: {signals.get('em_ratio', 1):.2f}x)"),
+            ("Put-Call Skew", signals.get("skew_25d", 0), 0.02,
+             f"Put premium over call premium: {signals.get('skew_25d', 0)*100:.1f} vol points"),
+            ("Dealer Positioning", signals.get("gex_billions", 0), 0,
+             f"Dealer GEX: ${signals.get('gex_billions', 0):.2f}B — {'supportive' if signals.get('gex_billions', 0) > 0 else 'adverse'}"),
+            ("Vol Stability", signals.get("vov_z", 0), 0,
+             f"Vol-of-vol Z: {signals.get('vov_z', 0):.1f} — {'stable' if signals.get('vov_z', 0) < 1.5 else 'unstable'} IV environment"),
+        ]
+
+        for name, value, threshold, description in checks:
+            is_good = (value >= threshold) if name != "Vol Stability" else (value < 1.5)
+            icon = "✓" if is_good else "✗"
+            color = "green" if is_good else "orange"
+            st.markdown(f":{color}[{icon}] **{name}** — {description}")
 
 
 def _render_recommendation_card(result: dict) -> None:
@@ -74,6 +105,15 @@ def _render_recommendation_card(result: dict) -> None:
 
     st.divider()
 
+    # Score Explanation
+    signals = result.get("signals") or {}
+    composite_score = (
+        result.get("composite_score")
+        or signals.get("composite_score")
+        or 0.0
+    )
+    _render_score_explanation(signals, composite_score)
+
     # Narratives
     st.subheader("Trade Reasoning")
     for label, key in [
@@ -131,6 +171,77 @@ def render_ticker_analysis() -> None:
     with col_right:
         st.plotly_chart(chart_vrp_history(analytics), use_container_width=True)
         st.plotly_chart(chart_scenario_pnl(result), use_container_width=True)
+
+    # P&L Simulator
+    try:
+        rec = result.get("recommendation", {}) or {}
+        structure_res = rec.get("structure_result", {}) or {}
+        if not structure_res:
+            # Fallback: pull top-level fields that stage2 may store directly
+            structure_res = result
+
+        spot = float(result.get("spot") or 100)
+        short_strike = float(
+            structure_res.get("short_strike") or rec.get("short_strike") or result.get("short_strike") or spot * 0.95
+        )
+        long_strike = structure_res.get("long_strike") or rec.get("long_strike") or result.get("long_strike")
+        net_credit = float(rec.get("net_credit") or result.get("net_credit") or 0)
+        max_loss = float(rec.get("max_loss") or result.get("max_loss") or short_strike * 100)
+        expiration = str(
+            structure_res.get("expiration_date") or rec.get("expiration_date") or result.get("expiration_date") or ""
+        )
+        structure_name = str(
+            structure_res.get("structure") or rec.get("structure") or result.get("structure") or "csp"
+        )
+
+        if net_credit > 0:
+            st.divider()
+            st.subheader("P&L Simulator")
+            st.caption("Explore what happens at different underlying prices at expiration.")
+
+            price_range = (float(spot * 0.50), float(spot * 1.30))
+            simulated_price = st.slider(
+                "Underlying price at expiration",
+                min_value=price_range[0],
+                max_value=price_range[1],
+                value=float(spot),
+                step=float(spot * 0.01),
+                format="$%.2f",
+                key=f"pnl_sim_{result.get('ticker', 'x')}",
+            )
+
+            net_credit_contract = net_credit * 100
+            max_loss_contract = max_loss
+
+            if structure_name == "csp":
+                sim_pnl = (
+                    net_credit_contract if simulated_price >= short_strike
+                    else (simulated_price - short_strike + net_credit) * 100
+                )
+            else:
+                raw = (simulated_price - short_strike + net_credit) * 100
+                sim_pnl = max(-max_loss_contract, min(net_credit_contract, raw))
+
+            breakeven = short_strike - net_credit
+            status = (
+                "Full Profit" if simulated_price >= short_strike
+                else ("Partial Profit" if sim_pnl > 0 else "Loss")
+            )
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("P&L at this price", f"${sim_pnl:,.0f}", delta=status)
+            col2.metric("Breakeven", f"${breakeven:.2f}")
+            col3.metric("Max Profit", f"${net_credit_contract:,.0f}")
+
+            st.plotly_chart(
+                chart_pnl_simulator(
+                    structure_name, spot, short_strike, long_strike,
+                    net_credit, max_loss, expiration,
+                ),
+                use_container_width=True,
+            )
+    except Exception:
+        pass  # Never block the page if the simulator fails
 
     # Go/No-Go Detail
     with st.expander("Go/No-Go Check Detail", expanded=False):

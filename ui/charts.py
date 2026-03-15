@@ -119,6 +119,90 @@ def chart_scenario_pnl(result: dict) -> go.Figure:
     return fig
 
 
+def chart_pnl_simulator(
+    structure: str,
+    spot: float,
+    short_strike: float,
+    long_strike: "float | None",
+    net_credit: float,
+    max_loss: float,
+    expiration: str = "",
+) -> go.Figure:
+    """Interactive P&L chart for manual price exploration.
+
+    Shows payoff diagram across a range of underlying prices.
+    Color-coded: green (full profit), yellow (partial), red (loss), dark red (max loss).
+    """
+    # Price range: -50% to +30% of spot
+    prices = np.linspace(spot * 0.50, spot * 1.30, 300)
+    net_credit_contract = net_credit * 100
+    max_loss_contract = max_loss  # already per-contract
+
+    pnls = []
+    for p in prices:
+        if structure == "csp":
+            if p >= short_strike:
+                pnl = net_credit_contract
+            else:
+                pnl = (p - short_strike + net_credit) * 100
+        elif structure in ("spread", "collar", "iron_condor"):
+            raw = (p - short_strike + net_credit) * 100
+            pnl = max(-max_loss_contract, min(net_credit_contract, raw))
+        else:
+            pnl = net_credit_contract
+        pnls.append(pnl)
+
+    pnls = np.array(pnls)
+
+    # Breakeven and key levels
+    breakeven = short_strike - net_credit
+    net_credit_contract = net_credit * 100
+
+    fig = go.Figure()
+
+    # P&L line
+    fig.add_trace(go.Scatter(
+        x=prices, y=pnls,
+        mode='lines',
+        line=dict(color='white', width=2),
+        fill='tozeroy',
+        fillcolor='rgba(59, 130, 246, 0.15)',
+        name='P&L',
+        hovertemplate='Price: $%{x:.2f}<br>P&L: $%{y:.0f}<extra></extra>',
+    ))
+
+    # Key level lines
+    fig.add_vline(x=spot, line_dash="dot", line_color="white",
+                  annotation_text="Current", annotation_position="top")
+    fig.add_vline(x=short_strike, line_dash="dash", line_color="orange",
+                  annotation_text=f"Short Strike ${short_strike:.0f}",
+                  annotation_position="top right")
+    fig.add_vline(x=breakeven, line_dash="dash", line_color="red",
+                  annotation_text=f"Breakeven ${breakeven:.2f}",
+                  annotation_position="bottom right")
+    fig.add_hline(y=0, line_color="gray", line_width=1)
+    fig.add_hline(y=net_credit_contract, line_dash="dot", line_color="green",
+                  annotation_text=f"Max Profit ${net_credit_contract:.0f}",
+                  annotation_position="right")
+
+    if max_loss_contract > 0:
+        fig.add_hline(y=-max_loss_contract, line_dash="dot", line_color="red",
+                      annotation_text=f"Max Loss -${max_loss_contract:.0f}",
+                      annotation_position="right")
+
+    fig.update_layout(
+        title=f"P&L at Expiration — {structure.upper()} {expiration}",
+        xaxis_title="Underlying Price at Expiration ($)",
+        yaxis_title="P&L per Contract ($)",
+        template="plotly_dark",
+        height=380,
+        showlegend=False,
+        margin=dict(l=60, r=80, t=50, b=50),
+    )
+
+    return fig
+
+
 def chart_gex_history(analytics_result: dict) -> go.Figure:
     """GEX history: x = date, y = GEX in billions.
 
