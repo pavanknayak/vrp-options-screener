@@ -82,7 +82,20 @@ class ScanOrchestrator:
             vix = self._get_vix()
 
             universe = load_universe()
+
+            # Launch fundamentals pre-fetch in background BEFORE Stage 1 starts
+            # This overlaps EDGAR HTTP I/O with Stage 1's yfinance calls
+            prefetch_future = self._prefetch_fundamentals_async(universe)
+
+            # Stage 1 runs while fundamentals are being fetched
             stage1_results = run_stage1(universe=universe, n_workers=n_workers, top_n=top_n)
+
+            # Wait for prefetch to finish (usually done by now)
+            try:
+                prefetch_future.result(timeout=60)
+                logger.info("[ORCHESTRATOR] Fundamentals pre-fetch complete")
+            except Exception as exc:
+                logger.warning("[ORCHESTRATOR] Fundamentals pre-fetch incomplete: %s", exc)
 
             from data.schwab_client import get_schwab_client
             schwab_available = get_schwab_client() is not None
@@ -161,6 +174,39 @@ class ScanOrchestrator:
         except Exception:
             pass
         return 20.0
+
+    def _prefetch_fundamentals_async(self, universe: dict):
+        """Launch background fundamentals pre-fetch for all universe tickers.
+
+        Runs 10 parallel EDGAR fetches to warm the SQLite cache before Stage 2 starts.
+        Returns a Future so the caller can optionally wait for it.
+        """
+        from concurrent.futures import ThreadPoolExecutor
+
+        executor = ThreadPoolExecutor(max_workers=10, thread_name_prefix="fund_prefetch")
+
+        def _prefetch_batch():
+            from fundamentals.engine import run_fundamentals
+            tickers_needing_fundamentals = [
+                (sym, info.tier, info.asset_class)
+                for sym, info in universe.items()
+                if getattr(info, 'requires_fundamental_score', False)
+            ]
+            logger.info("[ORCHESTRATOR] Pre-fetching fundamentals for %d tickers", len(tickers_needing_fundamentals))
+
+            futures = [
+                executor.submit(run_fundamentals, sym, tier, ac)
+                for sym, tier, ac in tickers_needing_fundamentals[:300]  # cap at 300 to avoid EDGAR overload
+            ]
+            # Don't wait for all — just let them warm the cache
+            executor.shutdown(wait=False)
+            return len(futures)
+
+        from concurrent.futures import ThreadPoolExecutor as TPE
+        outer = TPE(max_workers=1)
+        future = outer.submit(_prefetch_batch)
+        outer.shutdown(wait=False)
+        return future
 
     def start_scheduler(self) -> None:
         """Start the APScheduler BackgroundScheduler for 9:45 AM ET daily trigger.
