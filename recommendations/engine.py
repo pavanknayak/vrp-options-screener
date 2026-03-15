@@ -206,6 +206,13 @@ def run_recommendation(
             "target_delta": card.target_delta,
             "fomc_status": card.fomc_status,
             "fomc_message": card.fomc_message,
+            # B3: EV-optimal strike
+            "ev_optimal_strike": getattr(structure_result, "ev_optimal_strike", None),
+            # C4: Iron condor legs
+            "ic_short_put": getattr(structure_result, "ic_short_put", None),
+            "ic_long_put": getattr(structure_result, "ic_long_put", None),
+            "ic_short_call": getattr(structure_result, "ic_short_call", None),
+            "ic_long_call": getattr(structure_result, "ic_long_call", None),
 
             # Trade economics
             "net_credit": card.net_credit,

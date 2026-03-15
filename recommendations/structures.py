@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Supported structures — source of truth for Phase 5
 # ---------------------------------------------------------------------------
 
-SUPPORTED_STRUCTURES: set[str] = {"csp", "spread", "collar"}
+SUPPORTED_STRUCTURES: set[str] = {"csp", "spread", "collar", "iron_condor"}
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ SUPPORTED_STRUCTURES: set[str] = {"csp", "spread", "collar"}
 class StructureResult:
     """Complete trade structure selection output."""
 
-    structure: str                          # "csp" | "spread" | "collar"
+    structure: str                          # "csp" | "spread" | "collar" | "iron_condor"
     expiration_date: str                    # ISO date string "YYYY-MM-DD"
     dte: int                                # actual DTE of selected expiration
     target_delta: float                     # Kelly-optimal delta [0.10, 0.35]
@@ -52,6 +52,127 @@ class StructureResult:
     fomc_status: str                        # "CLEAR" | "FOMC_IN_WINDOW" | "AVOID" | "PRIORITY_ENTRY"
     fomc_message: str                       # human-readable fomc_context message
     delta_adjustment_reason: str            # explains why delta was shifted from 0.25
+    ev_optimal_strike: Optional[float] = None  # EV-optimal put strike (B3); None if unavailable
+    # Iron condor legs (C4) — None for non-condor structures
+    ic_short_put: Optional[float] = None
+    ic_long_put: Optional[float] = None
+    ic_short_call: Optional[float] = None
+    ic_long_call: Optional[float] = None
+
+
+# ---------------------------------------------------------------------------
+# B3 — EV-optimal strike selection helper
+# ---------------------------------------------------------------------------
+
+def _find_ev_optimal_strike(
+    puts_df: pd.DataFrame,
+    spot: float,
+    dte_years: float,
+) -> Optional[float]:
+    """Find the put strike maximising probability-weighted EV across available strikes.
+
+    For each candidate put strike K:
+        EV(K) = P(S_T > K) * credit(K) - P(S_T <= K) * expected_loss(K)
+
+    Uses log-normal approximation for P(S_T > K) with sigma=IV at that strike.
+    Returns the EV-optimal strike, constrained to delta in [0.08, 0.38].
+    Returns None if puts_df is empty or the computation fails.
+    """
+    if puts_df is None or puts_df.empty:
+        return None
+    try:
+        import scipy.stats as stats  # deferred import to avoid circular issues
+
+        best_ev = -np.inf
+        best_strike = None
+
+        for _, row in puts_df.iterrows():
+            try:
+                K = float(row.get("strike", 0))
+                if K <= 0:
+                    continue
+                bid = float(row.get("bid", 0))
+                ask = float(row.get("ask", bid))
+                iv_val = row.get("iv", None)
+                iv = float(iv_val) if iv_val is not None else 0.25
+                if iv <= 0:
+                    iv = 0.25
+                delta_val = row.get("delta", None)
+                delta = abs(float(delta_val)) if delta_val is not None else 0.20
+
+                # Constrain to reasonable delta range
+                if not (0.08 <= delta <= 0.38):
+                    continue
+
+                credit = (bid + ask) / 2 * 0.75  # slippage-adjusted
+                if credit <= 0:
+                    continue
+
+                if dte_years <= 0:
+                    continue
+
+                # Log-normal probability: P(S_T > K)
+                d2 = (np.log(spot / K) - 0.5 * iv ** 2 * dte_years) / (
+                    iv * np.sqrt(dte_years)
+                )
+                p_profit = float(stats.norm.cdf(d2))
+                p_loss = 1.0 - p_profit
+
+                # Expected loss if assigned
+                expected_loss = max(
+                    K - spot * np.exp(-0.5 * iv ** 2 * dte_years), K * 0.10
+                )
+
+                ev = p_profit * credit * 100 - p_loss * expected_loss * 100
+
+                if ev > best_ev:
+                    best_ev = ev
+                    best_strike = K
+            except Exception:  # noqa: BLE001 — skip malformed rows silently
+                continue
+
+        return best_strike
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("_find_ev_optimal_strike: computation failed: %s", exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# C4 — Iron condor eligibility check
+# ---------------------------------------------------------------------------
+
+def _should_use_iron_condor(analytics_result: dict, ticker_info) -> bool:
+    """Return True when iron condor is the appropriate structure.
+
+    Criteria:
+    - Tier is 1A-1I (liquid ETF)
+    - composite_score > 65
+    - vrp_persist_30d > 0.70
+    - term_slope >= 0 (contango)
+    - abs(pcr_oi - 1.0) < 0.5
+    - regime not High or Crisis
+    """
+    try:
+        signals = analytics_result.get("signals", {})
+        regime = analytics_result.get("regime", {}).get("label", "Normal")
+        tier = str(getattr(ticker_info, "tier", "2"))
+
+        if not tier.startswith("1"):
+            return False
+        if regime in ("High", "Crisis"):
+            return False
+        if analytics_result.get("composite_score", 0) < 65:
+            return False
+        if signals.get("vrp_persist_30d", 0) < 0.70:
+            return False
+        if signals.get("term_slope", 0) < 0:
+            return False
+        if abs(signals.get("pcr_oi", 1.0) - 1.0) >= 0.5:
+            return False
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("_should_use_iron_condor: check failed: %s", exc)
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -89,6 +210,10 @@ def select_structure(ticker_info, analytics_result) -> str:
         return "spread"
 
     asset_class: str = ticker_info.asset_class
+
+    # C4: Iron condor — preferred for Tier 1A-1I ETFs when conditions are met
+    if _should_use_iron_condor(analytics_result, ticker_info):
+        return "iron_condor"
 
     # Prefer CSP for equity tiers (not crypto or china ADR)
     if "csp" in permitted and asset_class not in {"crypto_etf", "china_adr"}:
@@ -213,6 +338,10 @@ def select_strikes(analytics_result: dict, ticker_info, chain: dict, today_date:
         short_strike: float
         long_strike: Optional[float] = None
         collar_call_strike: Optional[float] = None
+        ic_short_put: Optional[float] = None
+        ic_long_put: Optional[float] = None
+        ic_short_call: Optional[float] = None
+        ic_long_call: Optional[float] = None
 
         # --- Shared put selection logic ---
         def _find_short_put(target_d: float) -> float:
@@ -229,6 +358,21 @@ def select_strikes(analytics_result: dict, ticker_info, chain: dict, today_date:
                     return float(puts_df.loc[idx, "strike"])
                 return round(spot * 0.90, 0)
 
+        def _find_short_call(target_d: float) -> Optional[float]:
+            """Find OTM call strike closest to target_d using delta column or BSM fallback."""
+            if not calls_df.empty and "delta" in calls_df.columns and not calls_df["delta"].isna().all():
+                valid_calls = calls_df.dropna(subset=["delta"])
+                otm_calls = valid_calls[valid_calls["strike"] > spot]
+                if otm_calls.empty:
+                    otm_calls = valid_calls
+                cidx = (otm_calls["delta"].abs() - target_d).abs().idxmin()
+                return float(otm_calls.loc[cidx, "strike"])
+            elif not calls_df.empty:
+                k_approx = spot * np.exp(norm.ppf(1.0 - target_d) * iv * np.sqrt(T))
+                cidx = (calls_df["strike"] - k_approx).abs().idxmin()
+                return float(calls_df.loc[cidx, "strike"])
+            return None
+
         def _compute_long_strike(short_s: float) -> float:
             """Compute long put strike approximately spread_width below short strike."""
             if spot <= 100.0:
@@ -237,6 +381,14 @@ def select_strikes(analytics_result: dict, ticker_info, chain: dict, today_date:
                 spread_width = round(spot * 0.025 / 5) * 5
             long_s = max(short_s - spread_width, 0.0)
             return long_s
+
+        def _compute_long_call_strike(short_call_s: float) -> float:
+            """Compute long call strike approximately spread_width above short call."""
+            if spot <= 100.0:
+                spread_width = max(5.0, round(spot * 0.05 / 5) * 5)
+            else:
+                spread_width = round(spot * 0.025 / 5) * 5
+            return short_call_s + spread_width
 
         # --- CSP ---
         if structure == "csp":
@@ -249,6 +401,23 @@ def select_strikes(analytics_result: dict, ticker_info, chain: dict, today_date:
             short_strike = _find_short_put(target_delta)
             long_strike = _compute_long_strike(short_strike)
             collar_call_strike = None
+
+        # --- Iron Condor (C4) ---
+        elif structure == "iron_condor":
+            # Short put: ~0.15 delta OTM; Long put: ~0.10 delta OTM (5-pt below short)
+            ic_short_put = _find_short_put(0.15)
+            ic_long_put = _compute_long_strike(ic_short_put)
+            # Short call: ~0.15 delta OTM; Long call: ~0.10 delta OTM (5-pt above short)
+            ic_short_call_found = _find_short_call(0.15)
+            if ic_short_call_found is None:
+                ic_short_call_found = spot * 1.05  # 5% OTM fallback
+            ic_short_call = ic_short_call_found
+            ic_long_call = _compute_long_call_strike(ic_short_call)
+            # For P&L compatibility, short_strike is the short put (put side dominates)
+            short_strike = ic_short_put
+            long_strike = ic_long_put
+            collar_call_strike = ic_short_call
+            delta_reason += "; iron_condor: short put ~0.15Δ, short call ~0.15Δ (5-pt wings)"
 
         # --- Collar ---
         else:  # "collar"
@@ -280,6 +449,9 @@ def select_strikes(analytics_result: dict, ticker_info, chain: dict, today_date:
                     f"; collar: short call selected at {collar_call_strike:.1f} (0.25\u0394 OTM call)"
                 )
 
+        # B3 — Compute EV-optimal strike (for put-side structures; non-blocking)
+        ev_optimal_strike: Optional[float] = _find_ev_optimal_strike(puts_df, spot, T)
+
         # ------------------------------------------------------------------
         # Step 4 — Assemble StructureResult
         # ------------------------------------------------------------------
@@ -295,6 +467,11 @@ def select_strikes(analytics_result: dict, ticker_info, chain: dict, today_date:
             fomc_status=fomc_status,
             fomc_message=fomc_msg,
             delta_adjustment_reason=delta_reason,
+            ev_optimal_strike=ev_optimal_strike,
+            ic_short_put=ic_short_put,
+            ic_long_put=ic_long_put,
+            ic_short_call=ic_short_call,
+            ic_long_call=ic_long_call,
         )
 
     except Exception:
@@ -314,4 +491,9 @@ def select_strikes(analytics_result: dict, ticker_info, chain: dict, today_date:
             fomc_status="CLEAR",
             fomc_message="",
             delta_adjustment_reason="fallback: exception during selection",
+            ev_optimal_strike=None,
+            ic_short_put=None,
+            ic_long_put=None,
+            ic_short_call=None,
+            ic_long_call=None,
         )

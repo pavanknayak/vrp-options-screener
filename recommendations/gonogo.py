@@ -247,22 +247,24 @@ def _evaluate_inner(
     _pass_check(checks, "HARD-07", "Jump% Threshold")
 
     # HARD-08: China ADR Structure Ban
+    # iron_condor is exempt: it uses defined-risk wings and is never a naked CSP
     if ticker_info.asset_class == "china_adr" and proposed_structure == "csp":
         return _fail(
             "HARD-08",
             "China ADR Structure Ban",
-            "China ADR (Tier 6B) CSP structurally banned — only Spread/Collar permitted.",
+            "China ADR (Tier 6B) CSP structurally banned — only Spread/Collar/Iron Condor permitted.",
             checks,
             permitted_structures,
         )
     _pass_check(checks, "HARD-08", "China ADR Structure Ban")
 
     # HARD-09: Crypto ETF Structure Ban
+    # iron_condor is exempt: it is a defined-risk structure (not a naked CSP)
     if ticker_info.asset_class == "crypto_etf" and proposed_structure == "csp":
         return _fail(
             "HARD-09",
             "Crypto ETF Structure Ban",
-            "Crypto ETF CSP structurally banned — only Spread/Collar permitted.",
+            "Crypto ETF CSP structurally banned — only Spread/Collar/Iron Condor permitted.",
             checks,
             permitted_structures,
         )
