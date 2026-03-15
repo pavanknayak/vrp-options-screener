@@ -250,12 +250,19 @@ def filter_chain_options(
 def fit_iv_smile(
     strikes: np.ndarray,
     ivs: np.ndarray,
-) -> PchipInterpolator | None:
-    """Fit a PCHIP monotone-cubic spline to the IV smile (PRD §5 Stage 2 Step 4).
+    spot: float = 0.0,
+    forward: float = 0.0,
+    dte_years: float = 0.0,
+):
+    """Fit an IV smile interpolator (PRD §5 Stage 2 Step 4).
 
-    PCHIP (Piecewise Cubic Hermite Interpolating Polynomial) ensures monotone
-    local behaviour — no spurious oscillations in the fitted smile — which
-    prevents negative forward variance within the fitted range.
+    Tries SVI (Stochastic Volatility Inspired) first when >= 4 valid points
+    and forward/dte_years are provided. SVI is arbitrage-free by construction
+    and avoids spurious oscillations. Falls back to PCHIP when SVI is not
+    available, fails to converge, or produces a non-arbitrage-free smile.
+
+    The returned callable is tagged with:
+        ._method : str — 'svi' or 'pchip'
 
     Parameters
     ----------
@@ -264,11 +271,21 @@ def fit_iv_smile(
     ivs : np.ndarray
         Implied volatilities corresponding to each strike. Values <= 0.01 or
         non-finite are treated as invalid and excluded.
+    spot : float, optional
+        Current underlying price. Required for SVI (log-moneyness computation).
+    forward : float, optional
+        Forward price. Used as denominator for log-moneyness. When 0 or
+        omitted, *spot* is used as a proxy for the forward.
+    dte_years : float, optional
+        Time to expiry in years. Required for SVI total-variance conversion.
+        When 0 or omitted, SVI is skipped.
 
     Returns
     -------
-    PchipInterpolator or None
+    callable or None
         Fitted interpolator if >= 3 valid (strike, IV) pairs exist, else None.
+        The callable accepts a single float strike and returns the IV.
+        Has a ._method attribute ('svi' or 'pchip').
     """
     valid = np.isfinite(ivs) & (ivs > 0.01)
     s = np.asarray(strikes)[valid]
@@ -290,8 +307,38 @@ def fit_iv_smile(
         [v_sorted[idx_inv == i].mean() for i in range(len(unique_strikes))]
     )
 
-    # extrapolate=False: returns NaN outside the fitted strike range
-    return PchipInterpolator(unique_strikes, unique_ivs, extrapolate=False)
+    # --- C1: Try SVI first when conditions are met ---
+    if len(unique_strikes) >= 4 and dte_years > 0 and (forward > 0 or spot > 0):
+        try:
+            from analytics.iv_surface_svi import fit_svi_slice, interpolate_svi
+            fwd = forward if forward > 0 else spot
+            log_m = np.log(unique_strikes / fwd)
+            svi_result = fit_svi_slice(log_m, unique_ivs, dte_years)
+
+            if (svi_result is not None
+                    and svi_result['arbitrage_free']
+                    and svi_result['rmse'] < 0.03):
+                # Wrap in a callable that mirrors PchipInterpolator's interface
+                _svi = svi_result  # capture in closure
+                _fwd = fwd
+                _dte = dte_years
+
+                def svi_interp(k: float) -> float:
+                    lm = np.log(k / _fwd)
+                    result = interpolate_svi(lm, _svi, _dte)
+                    return result if result is not None else float('nan')
+
+                svi_interp._method = 'svi'
+                svi_interp._svi_result = svi_result
+                svi_interp._is_svi = True
+                return svi_interp
+        except Exception:
+            pass  # fall through to PCHIP
+
+    # --- Fall back to PCHIP ---
+    pchip = PchipInterpolator(unique_strikes, unique_ivs, extrapolate=False)
+    pchip._method = 'pchip'
+    return pchip
 
 
 # ---------------------------------------------------------------------------
@@ -399,12 +446,21 @@ def interpolate_iv_surface(chain: dict, spot: float, r: float) -> dict:
         strikes_arr = np.array([x[0] for x in ivs_list])
         ivs_arr = np.array([x[1] for x in ivs_list])
 
-        smile = fit_iv_smile(strikes_arr, ivs_arr)
+        # Forward price proxy: spot * e^{r*T} (approximate; r may be 0)
+        forward_approx = spot * np.exp(r * T) if r > 0 else spot
+
+        smile = fit_iv_smile(
+            strikes_arr, ivs_arr,
+            spot=spot, forward=forward_approx, dte_years=T,
+        )
         if smile is None:
             logger.warning(
                 "interpolate_iv_surface: fit_iv_smile returned None for DTE=%d; skipping.", dte
             )
             continue
+
+        # Track smile method for quality flag
+        smile_method = getattr(smile, '_method', 'pchip')
 
         atm_iv = float(smile(spot))
 
@@ -419,9 +475,10 @@ def interpolate_iv_surface(chain: dict, spot: float, r: float) -> dict:
             )
 
         exp_ivs.append({
-            'dte': dte,
-            'atm_iv': atm_iv,
-            'total_var': atm_iv ** 2 * dte,
+            'dte':          dte,
+            'atm_iv':       atm_iv,
+            'total_var':    atm_iv ** 2 * dte,
+            'smile_method': smile_method,
         })
 
     if len(exp_ivs) < 2:
@@ -447,11 +504,21 @@ def interpolate_iv_surface(chain: dict, spot: float, r: float) -> dict:
     iv30 = _interp_tv(dtes, tot_vars, target_dte=30)
     iv60 = _interp_tv(dtes, tot_vars, target_dte=60)
 
+    # C1: Determine iv_surface_quality flag from smile methods used
+    methods_used = [e.get('smile_method', 'pchip') for e in exp_ivs]
+    if all(m == 'svi' for m in methods_used):
+        iv_surface_quality = 'svi'
+    elif len(exp_ivs) < 4:
+        iv_surface_quality = 'degraded'
+    else:
+        iv_surface_quality = 'pchip'
+
     return {
-        'iv30': iv30,
-        'iv60': iv60,
-        'exp_ivs': exp_ivs,
-        'has_arbitrage': has_arb,
+        'iv30':               iv30,
+        'iv60':               iv60,
+        'exp_ivs':            exp_ivs,
+        'has_arbitrage':      has_arb,
+        'iv_surface_quality': iv_surface_quality,
     }
 
 
@@ -512,15 +579,16 @@ def compute_vrp(chain: dict, ohlc: pd.DataFrame, r: float) -> dict:
     vrp = iv30_td - ens['ensemble']
 
     return {
-        'iv30': surface['iv30'],
-        'iv60': surface.get('iv60'),
-        'iv30_td': iv30_td,
-        'iv60_td': iv60_td,
-        'vrp': float(vrp),
-        'ensemble_rv': ens['ensemble'],
-        'har': ens['har'],
-        'garch': ens['garch'],
-        'ewma': ens['ewma'],
-        'has_arbitrage': surface.get('has_arbitrage', False),
-        'exp_ivs': surface.get('exp_ivs', []),
+        'iv30':               surface['iv30'],
+        'iv60':               surface.get('iv60'),
+        'iv30_td':            iv30_td,
+        'iv60_td':            iv60_td,
+        'vrp':                float(vrp),
+        'ensemble_rv':        ens['ensemble'],
+        'har':                ens['har'],
+        'garch':              ens['garch'],
+        'ewma':               ens['ewma'],
+        'has_arbitrage':      surface.get('has_arbitrage', False),
+        'exp_ivs':            surface.get('exp_ivs', []),
+        'iv_surface_quality': surface.get('iv_surface_quality', 'pchip'),
     }
