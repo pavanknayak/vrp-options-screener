@@ -215,6 +215,53 @@ def render_settings() -> None:
 
     st.divider()
 
+    # === Section 3b: Risk Management (Circuit Breaker) ===
+    st.header("Risk Management")
+    st.caption(
+        "Set drawdown thresholds for the portfolio circuit breaker. "
+        "When the portfolio NAV drops below these levels, position sizing is reduced automatically."
+    )
+
+    with st.form("settings_risk_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Soft Limit")
+            st.caption("Position sizes reduced 50% when drawdown exceeds this level.")
+            cfg["cb_soft_limit"] = st.number_input(
+                "Soft Limit Drawdown (%)",
+                min_value=1.0, max_value=50.0,
+                value=float(cfg.get("cb_soft_limit", 8.0)),
+                step=0.5, format="%.1f",
+                key="settings_cb_soft",
+                help="When portfolio NAV drops this % below peak, position sizing is halved.",
+            )
+        with col2:
+            st.subheader("Hard Limit")
+            st.caption("All new positions blocked when drawdown exceeds this level.")
+            cfg["cb_hard_limit"] = st.number_input(
+                "Hard Limit Drawdown (%)",
+                min_value=1.0, max_value=100.0,
+                value=float(cfg.get("cb_hard_limit", 15.0)),
+                step=0.5, format="%.1f",
+                key="settings_cb_hard",
+                help="When portfolio NAV drops this % below peak, no new trades are permitted.",
+            )
+
+        save_risk = st.form_submit_button("Save Risk Settings", type="primary")
+
+    if save_risk:
+        if cfg["cb_soft_limit"] >= cfg["cb_hard_limit"]:
+            st.error("Soft limit must be less than hard limit.")
+        else:
+            st.session_state["config"] = cfg
+            save_config(cfg)
+            st.success(
+                f"Risk settings saved: soft limit {cfg['cb_soft_limit']:.1f}%, "
+                f"hard limit {cfg['cb_hard_limit']:.1f}%."
+            )
+
+    st.divider()
+
     # === Section 4: Schwab Connection Status ===
     st.header("Schwab Connection")
     has_creds, token_valid, status_msg = _schwab_status()
