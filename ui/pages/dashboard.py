@@ -75,6 +75,14 @@ def render_dashboard() -> None:
         st.info("No scan results yet. Run a scan to populate the dashboard.")
         return
 
+    # --- Stage 1 only disclaimer (no Schwab keys) ---
+    if results and results[0].get("_stage1_only"):
+        st.warning(
+            "Schwab credentials not configured — showing Stage 1 (yfinance) pre-screening results. "
+            "Scores, IVP, and VRP are approximate. GO/NO-GO requires Stage 2. "
+            "Add SCHWAB_APP_KEY + SCHWAB_APP_SECRET to enable full analysis."
+        )
+
     # --- Build DataFrame ---
     df = _build_dataframe(results)
 

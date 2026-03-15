@@ -17,6 +17,30 @@ from universe.loader import load_universe
 logger = logging.getLogger(__name__)
 
 
+def _stage1_to_dict(s1) -> dict:
+    """Convert a Stage1Result into the minimal dict format expected by the dashboard.
+
+    Used when Schwab is not configured so Stage 1 results are still displayable.
+    Fields that require Stage 2 (full analytics, signals, recommendation) are
+    set to sensible defaults so _build_dataframe() in dashboard.py doesn't error.
+    """
+    return {
+        "ticker": s1.ticker,
+        "tier": s1.tier,
+        "composite_score": round(s1.score * 100, 1),   # scale to 0-100 range
+        "iv30": s1.atm_iv,
+        "vrp": s1.vrp_approx,
+        "ivp": s1.ivp_approx,
+        "next_earnings": str(s1.earnings_date) if s1.earnings_date else None,
+        "passed": False,   # can't determine GO/NO-GO without full Stage 2 analysis
+        "signals": {
+            "ivp": s1.ivp_approx,
+            "composite_score": round(s1.score * 100, 1),
+        },
+        "_stage1_only": True,   # flag so UI can show a disclaimer
+    }
+
+
 class ScanOrchestrator:
     """
     Coordinates the two-stage VRP scanner and all supplementary scan modes.
@@ -40,9 +64,13 @@ class ScanOrchestrator:
     def run_full_scan(self, n_workers: int = 20, top_n: int = 175) -> list[dict]:
         """Run Stage 1 (yfinance pre-filter) then Stage 2 (Schwab deep analysis).
 
+        If Schwab credentials are not configured, Stage 2 is skipped and Stage 1
+        results are returned directly as minimal result dicts so the dashboard
+        is still populated without Schwab keys.
+
         Updates internal cache. Thread-safe — concurrent calls are serialized
         by the lock (second caller blocks until first scan completes).
-        Returns the Stage 2 results list.
+        Returns the results list.
         """
         with self._lock:
             self._set_status(state="running", error=None)
@@ -56,20 +84,30 @@ class ScanOrchestrator:
             universe = load_universe()
             stage1_results = run_stage1(universe=universe, n_workers=n_workers, top_n=top_n)
 
-            stage2_results = run_stage2(stage1_results, r=r, vix=vix)
+            from data.schwab_client import get_schwab_client
+            schwab_available = get_schwab_client() is not None
+
+            if schwab_available:
+                final_results = run_stage2(stage1_results, r=r, vix=vix)
+            else:
+                logger.info(
+                    "[ORCHESTRATOR] Schwab not configured — returning Stage 1 results (%d)",
+                    len(stage1_results),
+                )
+                final_results = [_stage1_to_dict(s1) for s1 in stage1_results]
 
             with self._lock:
-                self._results = stage2_results
+                self._results = final_results
                 self._stage1_candidates = stage1_results
                 self._set_status(
                     state="complete",
                     last_run_utc=datetime.now(timezone.utc).isoformat(),
-                    candidate_count=len(stage2_results),
+                    candidate_count=len(final_results),
                     error=None,
                 )
 
-            logger.info("[ORCHESTRATOR] Full scan complete — %d results", len(stage2_results))
-            return stage2_results
+            logger.info("[ORCHESTRATOR] Full scan complete — %d results", len(final_results))
+            return final_results
 
         except Exception as exc:
             logger.error("[ORCHESTRATOR] Full scan failed: %s", exc)

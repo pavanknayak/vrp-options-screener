@@ -73,6 +73,7 @@ def render_config_sidebar() -> dict:
             min_value=10_000.0, max_value=10_000_000.0,
             value=float(cfg["portfolio_value"]), step=5_000.0,
             key="cfg_portfolio_value",
+            help="Your total account size. Used to calculate the maximum dollar amount allowed per position.",
         )
         cfg["max_position_pct"] = st.slider(
             "Max Position % of Portfolio",
@@ -81,12 +82,14 @@ def render_config_sidebar() -> dict:
             step=1,
             format="%d%%",
             key="cfg_max_position_pct",
+            help="The largest slice of your portfolio that can go into a single trade. E.g. 5% means no more than $5,000 on a $100k account.",
         ) / 100
         cfg["max_positions"] = int(st.number_input(
             "Max Simultaneous Positions",
             min_value=1, max_value=50,
             value=int(cfg["max_positions"]), step=1,
             key="cfg_max_positions",
+            help="How many open trades you can hold at once. Keeps you from putting too much risk into the market at the same time.",
         ))
 
         # --- Screening Thresholds ---
@@ -96,6 +99,21 @@ def render_config_sidebar() -> dict:
             min_value=0.0, max_value=100.0,
             value=float(cfg["min_vrp_score"]), step=1.0,
             key="cfg_min_vrp_score",
+            help=(
+                "Overall attractiveness score (0–100) for selling options premium on a stock. "
+                "Higher = better opportunity. Stocks below this threshold are filtered out.\n\n"
+                "How it's calculated: 12 signals are blended using a weighted average —\n"
+                "• VRP size vs. history (18%) — how big the current premium is\n"
+                "• VRP consistency (12%) — how reliably it's been positive lately\n"
+                "• VRP statistical significance (12%) — is it a real edge or noise?\n"
+                "• Expected move ratio (10%) — does implied vol overshoot reality?\n"
+                "• Excess VRP (10%) — premium above what the market alone explains\n"
+                "• IV Percentile (8%) — are options expensive vs. the past year?\n"
+                "• Put-call skew (8%) — how much traders are paying for downside protection\n"
+                "• Term structure (7%), jump cleanliness (5%), put/call ratio (4%), dealer positioning (3%), IV stability (3%)\n\n"
+                "Penalties reduce the score if earnings fall inside the expiration window (−30%), "
+                "if the stock has frequent price gaps (up to −20%), or if IV itself is erratic (up to −25%, or zero if extreme)."
+            ),
         )
         cfg["min_ivp"] = st.slider(
             "Min IVP Percentile",
@@ -103,17 +121,20 @@ def render_config_sidebar() -> dict:
             value=float(cfg["min_ivp"]), step=0.01,
             format="%.2f",
             key="cfg_min_ivp",
+            help="IV Percentile — how expensive options are right now vs. the past year. 0.60 means current IV is higher than 60% of all past readings, so options are relatively pricey to sell.",
         )
         col1, col2 = st.columns(2)
         with col1:
             cfg["min_dte"] = int(st.number_input(
                 "Min DTE", min_value=1, max_value=120,
                 value=int(cfg["min_dte"]), step=1, key="cfg_min_dte",
+                help="Minimum days until expiration. Options closer to expiry than this are skipped — very short-dated options carry outsized risk from rapid price swings.",
             ))
         with col2:
             cfg["max_dte"] = int(st.number_input(
                 "Max DTE", min_value=1, max_value=365,
                 value=int(cfg["max_dte"]), step=1, key="cfg_max_dte",
+                help="Maximum days until expiration. The 30–60 day window is the sweet spot where time decay accelerates without the option being too far out.",
             ))
 
         # --- Slippage ---
@@ -124,6 +145,7 @@ def render_config_sidebar() -> dict:
             value=float(cfg["slippage_factor"]), step=0.01,
             format="%.2f",
             key="cfg_slippage_factor",
+            help="How much of the bid-ask spread you expect to capture when filling an order. 1.0 = mid price (optimistic), 0.5 = at the bid (conservative). 0.75 is a realistic default for liquid options.",
         )
 
         # --- Universe Tiers ---

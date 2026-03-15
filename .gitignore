@@ -10,3 +10,10 @@ dist/
 build/
 .venv/
 venv/
+.claude/
+.planning/
+.playwright-mcp/
+=*
+*.png
+*.jpg
+*.jpeg
