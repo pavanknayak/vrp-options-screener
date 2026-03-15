@@ -26,6 +26,9 @@ class Position:
     is_short_vol: bool = True            # True for premium-selling structures
     notes: str = ""
     created_at: str = field(default_factory=lambda: date.today().isoformat())
+    entry_price: float = 0.0             # underlying price at entry
+    sector: str = "Unknown"             # sector for concentration tracking
+    paper: bool = False                 # True for paper trading positions
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -101,3 +104,71 @@ def delete_position(position_id: int) -> None:
         _ensure_table(conn)
         conn.execute("DELETE FROM portfolio_positions WHERE id = ?", (position_id,))
         conn.commit()
+
+
+def save_paper_position(pos: Position) -> int:
+    """Save a paper trading position to paper_positions table. Returns the new row id."""
+    import time
+    from cache.db import get_db
+    db = get_db()
+    return db.execute_write(
+        """INSERT INTO paper_positions
+           (ticker, structure, short_strike, long_strike, expiration_date,
+            contracts, entry_credit, entry_price, entry_date, sector, notes, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (
+            pos.ticker,
+            pos.structure,
+            pos.short_strike,
+            pos.long_strike,
+            pos.expiry,
+            pos.quantity,
+            pos.net_credit,
+            pos.entry_price,
+            pos.created_at,
+            pos.sector,
+            pos.notes,
+            time.time(),
+        ),
+    )
+
+
+def load_paper_positions() -> list[dict]:
+    """Load all paper trading positions from paper_positions table."""
+    from cache.db import get_db
+    db = get_db()
+    rows = db.execute(
+        """SELECT id, ticker, structure, short_strike, long_strike,
+                  expiration_date, contracts, entry_credit, entry_price,
+                  entry_date, sector, notes, created_at
+           FROM paper_positions
+           ORDER BY created_at DESC"""
+    )
+    return [
+        {
+            "id": row[0],
+            "ticker": row[1],
+            "structure": row[2],
+            "short_strike": row[3],
+            "long_strike": row[4],
+            "expiration_date": row[5],
+            "contracts": row[6],
+            "entry_credit": row[7],
+            "entry_price": row[8],
+            "entry_date": row[9],
+            "sector": row[10] or "Unknown",
+            "notes": row[11] or "",
+            "created_at": row[12],
+        }
+        for row in rows
+    ]
+
+
+def delete_paper_position(position_id: int) -> None:
+    """Delete a paper trading position by ID."""
+    from cache.db import get_db
+    db = get_db()
+    db.execute_write(
+        "DELETE FROM paper_positions WHERE id = ?",
+        (position_id,),
+    )
