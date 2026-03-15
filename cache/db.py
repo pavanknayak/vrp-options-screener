@@ -39,6 +39,80 @@ CREATE TABLE IF NOT EXISTS cache (
     ttl_seconds INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_fetched_at ON cache(fetched_at);
+
+CREATE TABLE IF NOT EXISTS garch_params (
+    ticker      TEXT PRIMARY KEY,
+    params      BLOB NOT NULL,
+    baseline_std REAL NOT NULL,
+    fitted_at   REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS rv_forecast_accuracy (
+    ticker          TEXT NOT NULL,
+    model           TEXT NOT NULL,
+    forecast        REAL,
+    actual_rv       REAL,
+    forecast_date   TEXT NOT NULL,
+    PRIMARY KEY (ticker, model, forecast_date)
+);
+
+CREATE TABLE IF NOT EXISTS portfolio_nav_history (
+    date        TEXT PRIMARY KEY,
+    nav         REAL NOT NULL,
+    peak_nav    REAL NOT NULL,
+    drawdown_pct REAL NOT NULL,
+    updated_at  REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS paper_positions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker          TEXT NOT NULL,
+    structure       TEXT NOT NULL,
+    short_strike    REAL,
+    long_strike     REAL,
+    expiration_date TEXT,
+    contracts       INTEGER DEFAULT 1,
+    entry_credit    REAL,
+    entry_price     REAL,
+    entry_date      TEXT,
+    sector          TEXT DEFAULT 'Unknown',
+    notes           TEXT,
+    created_at      REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS portfolio_greeks (
+    date             TEXT PRIMARY KEY,
+    total_delta      REAL,
+    total_vega       REAL,
+    total_theta      REAL,
+    total_gamma      REAL,
+    theta_efficiency REAL,
+    updated_at       REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS backtest_results (
+    run_id          TEXT NOT NULL,
+    ticker          TEXT NOT NULL,
+    entry_date      TEXT NOT NULL,
+    signal_score    REAL,
+    structure       TEXT,
+    strike          REAL,
+    expiration      TEXT,
+    actual_pnl_pct  REAL,
+    win             INTEGER,
+    PRIMARY KEY (run_id, ticker, entry_date)
+);
+
+CREATE TABLE IF NOT EXISTS trade_outcomes (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker              TEXT NOT NULL,
+    entry_date          TEXT NOT NULL,
+    exit_date           TEXT,
+    signal_snapshot     BLOB,
+    realized_profit_pct REAL,
+    structure           TEXT,
+    created_at          REAL NOT NULL
+);
 """
 
 
@@ -49,6 +123,7 @@ class CacheDB:
         self._path = db_path if db_path is not None else _DEFAULT_DB_PATH
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
+        self._conn = self._connect()
         self._init_schema()
 
     # ------------------------------------------------------------------
@@ -123,6 +198,19 @@ class CacheDB:
     def exists(self, key: str) -> bool:
         """Return True if *key* exists in the cache AND has not expired."""
         return self.get(key) is not None
+
+    def execute(self, sql: str, params: tuple = ()) -> list:
+        """Execute arbitrary SQL and return all rows. For custom table queries."""
+        with self._lock:
+            cursor = self._conn.execute(sql, params)
+            return cursor.fetchall()
+
+    def execute_write(self, sql: str, params: tuple = ()) -> int:
+        """Execute write SQL (INSERT/UPDATE/DELETE). Returns lastrowid."""
+        with self._lock:
+            cursor = self._conn.execute(sql, params)
+            self._conn.commit()
+            return cursor.lastrowid
 
 
 # ---------------------------------------------------------------------------
