@@ -8,21 +8,33 @@ Models:
     HAR-RV      : Heterogeneous Autoregressive RV via OLS (PRD §6.3.1)
     GARCH-GJR   : GJR-GARCH(1,1,1) with student-t innovations (PRD §6.3.2)
     EWMA        : RiskMetrics EWMA lambda=0.94 (PRD §6.3.3)
-    Ensemble    : Unweighted mean of all three
+    Ensemble    : Weighted mean (inverse-RMSE) of all three — falls back to
+                  equal weights when fewer than 10 historical accuracy rows.
 
 Jump decomposition:
     Bipower Variation (BPV) : diffusive variance proxy (PRD §6.4)
     jump_stats              : jump variance, pct, VRP quality flags
+
+Caching:
+    A5: GARCH fitted params (omega, alpha, beta, gamma, nu) cached per ticker
+        in SQLite garch_params table with 24-hour TTL.
+    B1: Per-model forecast accuracy tracked in rv_forecast_accuracy table;
+        inverse-RMSE weights computed from last 30 observations.
 """
 from __future__ import annotations
 
 import logging
+import pickle
+import time
 
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
 logger = logging.getLogger(__name__)
+
+# TTL for GARCH param cache: 24 hours
+_GARCH_CACHE_TTL = 86_400.0
 
 
 # ---------------------------------------------------------------------------
@@ -116,10 +128,59 @@ def ewma_rv_forecast(returns: pd.Series, lam: float = 0.94) -> float:
 
 
 # ---------------------------------------------------------------------------
-# GARCH-GJR
+# GARCH-GJR  (A5: with SQLite param caching)
 # ---------------------------------------------------------------------------
 
-def garch_rv_forecast(returns: pd.Series) -> float:
+def _ensure_garch_table(conn) -> None:
+    """Create garch_params table lazily if it doesn't exist."""
+    conn.execute("""CREATE TABLE IF NOT EXISTS garch_params (
+        ticker      TEXT PRIMARY KEY,
+        params      BLOB,
+        baseline_std REAL,
+        fitted_at   REAL
+    )""")
+
+
+def _load_garch_cache(conn, ticker: str) -> dict | None:
+    """Return cached GARCH params dict if present and fresh (< 24h), else None."""
+    try:
+        row = conn.execute(
+            "SELECT params, baseline_std, fitted_at FROM garch_params WHERE ticker = ?",
+            (ticker,),
+        ).fetchone()
+        if row is None:
+            return None
+        blob, baseline_std, fitted_at = row
+        if time.time() - fitted_at > _GARCH_CACHE_TTL:
+            return None  # expired
+        params = pickle.loads(blob)  # noqa: S301 — trusted internal data
+        params['baseline_std'] = float(baseline_std)
+        params['fitted_at'] = float(fitted_at)
+        return params
+    except Exception:
+        return None
+
+
+def _save_garch_cache(conn, ticker: str, params: dict, baseline_std: float) -> None:
+    """Persist GARCH params to the garch_params table."""
+    try:
+        blob = pickle.dumps({k: v for k, v in params.items()
+                             if k in ('omega', 'alpha', 'beta', 'gamma', 'nu')})
+        conn.execute(
+            """INSERT INTO garch_params (ticker, params, baseline_std, fitted_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(ticker) DO UPDATE SET
+                   params       = excluded.params,
+                   baseline_std = excluded.baseline_std,
+                   fitted_at    = excluded.fitted_at""",
+            (ticker, blob, float(baseline_std), time.time()),
+        )
+        conn.commit()
+    except Exception as exc:
+        logger.warning("_save_garch_cache: failed to save params for %s: %s", ticker, exc)
+
+
+def garch_rv_forecast(returns: pd.Series, ticker: str | None = None) -> float:
     """GJR-GARCH(1,1,1) with student-t forecast (PRD §6.3.2).
 
     Fits an asymmetric GARCH model that accounts for the leverage effect
@@ -127,12 +188,20 @@ def garch_rv_forecast(returns: pd.Series) -> float:
     the same magnitude). Uses arch library conventions: returns are scaled to
     percentage units before fitting.
 
+    When *ticker* is provided, fitted parameters are cached in SQLite for 24
+    hours (A5). On subsequent calls the cached params are reused via
+    ``model.fix(params)`` — skipping the expensive fitting step — unless the
+    recent 5-day return std has changed >20% vs the cached baseline.
+
     Falls back to EWMA on any convergence or numerical failure.
 
     Parameters
     ----------
     returns : pd.Series
         Daily log-returns (decimal, e.g. 0.01 = 1%).
+    ticker : str, optional
+        Ticker symbol used as the cache key. When None, caching is skipped
+        and the model is always re-fitted.
 
     Returns
     -------
@@ -141,6 +210,31 @@ def garch_rv_forecast(returns: pd.Series) -> float:
     """
     try:
         from arch import arch_model
+        from cache.db import get_db
+
+        db = get_db()
+
+        # Current 5-day return std (baseline for cache invalidation)
+        recent_std = float(returns.iloc[-5:].std()) if len(returns) >= 5 else float(returns.std())
+
+        cached_params: dict | None = None
+        use_cache = False
+
+        if ticker is not None:
+            try:
+                _ensure_garch_table(db._conn)
+                cached_params = _load_garch_cache(db._conn, ticker)
+                if cached_params is not None:
+                    cached_baseline = cached_params.get('baseline_std', recent_std)
+                    # Invalidate if recent vol has shifted >20%
+                    if cached_baseline > 0 and abs(recent_std - cached_baseline) / cached_baseline < 0.20:
+                        use_cache = True
+                    else:
+                        logger.info(
+                            "garch_rv_forecast[%s]: vol shift >20%% — re-fitting GARCH.", ticker
+                        )
+            except Exception as exc:
+                logger.warning("garch_rv_forecast: cache lookup error for %s: %s", ticker, exc)
 
         model = arch_model(
             returns * 100,        # scale to percentage returns (arch convention)
@@ -150,25 +244,121 @@ def garch_rv_forecast(returns: pd.Series) -> float:
             q=1,
             dist='t',             # student-t for fat tails
         )
-        res = model.fit(disp='off')
+
+        if use_cache and cached_params is not None:
+            # Skip fitting — use fixed params from cache
+            fit_params = {k: cached_params[k]
+                         for k in ('omega', 'alpha', 'beta', 'gamma', 'nu')
+                         if k in cached_params}
+            res = model.fix(fit_params)
+        else:
+            res = model.fit(disp='off')
+            # Persist newly fitted params
+            if ticker is not None:
+                try:
+                    fitted = res.params
+                    param_dict = {}
+                    for k in ('omega', 'alpha', 'beta', 'gamma', 'nu'):
+                        if k in fitted.index:
+                            param_dict[k] = float(fitted[k])
+                    if param_dict:
+                        _save_garch_cache(db._conn, ticker, param_dict, recent_std)
+                except Exception as exc:
+                    logger.warning(
+                        "garch_rv_forecast: failed to cache params for %s: %s", ticker, exc
+                    )
+
         forecast = res.forecast(horizon=21)
         # forecast.variance shape: (1, 21) — daily variance in (returns*100)^2 units
         var_forecast_daily = forecast.variance.values[-1].mean() / 10000  # back to decimal
         return float(np.sqrt(var_forecast_daily * 252))
+
     except Exception as e:
         logger.warning("GARCH fit failed: %s; falling back to EWMA", e)
         return ewma_rv_forecast(returns)
 
 
 # ---------------------------------------------------------------------------
-# Ensemble
+# Ensemble  (B1: dynamically-weighted via inverse-RMSE)
 # ---------------------------------------------------------------------------
 
-def ensemble_rv_forecast(ohlc: pd.DataFrame, returns: pd.Series) -> dict:
-    """Unweighted ensemble of HAR-RV, GARCH-GJR, and EWMA forecasts.
+def _ensure_accuracy_table(conn) -> None:
+    """Create rv_forecast_accuracy table lazily if it doesn't exist."""
+    conn.execute("""CREATE TABLE IF NOT EXISTS rv_forecast_accuracy (
+        ticker        TEXT,
+        model         TEXT,
+        forecast      REAL,
+        actual_rv     REAL,
+        forecast_date TEXT,
+        PRIMARY KEY (ticker, model, forecast_date)
+    )""")
+
+
+def _compute_inverse_rmse_weights(conn, ticker: str) -> dict[str, float] | None:
+    """Return inverse-RMSE weights for (har, garch, ewma) from last 30 rows each.
+
+    Returns None (fall back to equal weights) if any model has fewer than 10
+    rows with non-null actual_rv.
+    """
+    models = ('har', 'garch', 'ewma')
+    rmse_map: dict[str, float] = {}
+
+    for model in models:
+        rows = conn.execute(
+            """SELECT forecast, actual_rv FROM rv_forecast_accuracy
+               WHERE ticker = ? AND model = ? AND actual_rv IS NOT NULL
+               ORDER BY forecast_date DESC LIMIT 30""",
+            (ticker, model),
+        ).fetchall()
+
+        if len(rows) < 10:
+            return None  # not enough history for any model
+
+        forecasts = np.array([r[0] for r in rows], dtype=float)
+        actuals   = np.array([r[1] for r in rows], dtype=float)
+        rmse = float(np.sqrt(np.mean((forecasts - actuals) ** 2)))
+        rmse_map[model] = max(rmse, 1e-8)  # avoid division by zero
+
+    inv_rmse = {m: 1.0 / rmse_map[m] for m in models}
+    total = sum(inv_rmse.values())
+    return {m: inv_rmse[m] / total for m in models}
+
+
+def _store_forecasts(conn, ticker: str, har: float, garch: float, ewma: float) -> None:
+    """Persist today's forecasts (actual_rv = NULL, to be filled later)."""
+    import datetime
+    today = datetime.date.today().isoformat()
+    for model, val in (('har', har), ('garch', garch), ('ewma', ewma)):
+        try:
+            conn.execute(
+                """INSERT INTO rv_forecast_accuracy (ticker, model, forecast, actual_rv, forecast_date)
+                   VALUES (?, ?, ?, NULL, ?)
+                   ON CONFLICT(ticker, model, forecast_date) DO NOTHING""",
+                (ticker, model, float(val), today),
+            )
+        except Exception:
+            pass
+    try:
+        conn.commit()
+    except Exception:
+        pass
+
+
+def ensemble_rv_forecast(
+    ohlc: pd.DataFrame,
+    returns: pd.Series,
+    ticker: str | None = None,
+) -> dict:
+    """Weighted ensemble of HAR-RV, GARCH-GJR, and EWMA forecasts.
 
     Defers import of yang_zhang_vol to avoid circular imports at module load
     time (analytics.realized_vol may also import from this module downstream).
+
+    Weight strategy (B1):
+    - If *ticker* provided and >= 10 historical accuracy rows per model: use
+      inverse-RMSE weights (models that were more accurate recently get more
+      weight).
+    - Otherwise: equal weights (1/3 each).
 
     If garch_rv_forecast raises, EWMA is substituted so the ensemble remains
     a mean of three values (HAR, EWMA, EWMA).
@@ -179,36 +369,67 @@ def ensemble_rv_forecast(ohlc: pd.DataFrame, returns: pd.Series) -> dict:
         OHLCV DataFrame with columns Open, High, Low, Close.
     returns : pd.Series
         Daily log-returns corresponding to ohlc.
+    ticker : str, optional
+        Ticker symbol used for GARCH param caching (A5) and accuracy
+        tracking (B1). When None, caching is skipped and equal weights used.
 
     Returns
     -------
     dict with keys:
-        har      : float  — HAR-RV forecast
-        garch    : float  — GARCH-GJR forecast (or EWMA fallback)
-        ewma     : float  — EWMA forecast
-        ensemble : float  — mean of all three (exact arithmetic mean)
+        har          : float  — HAR-RV forecast
+        garch        : float  — GARCH-GJR forecast (or EWMA fallback)
+        ewma         : float  — EWMA forecast
+        ensemble     : float  — weighted combination
+        weights_used : dict   — model -> weight used for this ensemble
     """
     # Deferred import: avoids circular dependency at module load time
     from analytics.realized_vol import yang_zhang_vol  # noqa: PLC0415
 
     rv_daily = yang_zhang_vol(ohlc, 21).dropna()
 
-    har = har_rv_forecast(rv_daily)
+    har  = har_rv_forecast(rv_daily)
     ewma = ewma_rv_forecast(returns)
 
     try:
-        garch = garch_rv_forecast(returns)
+        garch = garch_rv_forecast(returns, ticker=ticker)
     except Exception as e:
         logger.warning("ensemble_rv_forecast: GARCH failed (%s); using EWMA substitute.", e)
         garch = ewma
 
-    ensemble = (har + garch + ewma) / 3.0
+    # --- B1: determine weights ---
+    weights: dict[str, float] = {'har': 1/3, 'garch': 1/3, 'ewma': 1/3}  # equal fallback
+
+    if ticker is not None:
+        try:
+            from cache.db import get_db
+            db = get_db()
+            _ensure_accuracy_table(db._conn)
+
+            inv_weights = _compute_inverse_rmse_weights(db._conn, ticker)
+            if inv_weights is not None:
+                weights = inv_weights
+                logger.debug(
+                    "ensemble_rv_forecast[%s]: using inverse-RMSE weights %s", ticker, weights
+                )
+
+            # Store today's forecasts for future accuracy tracking
+            _store_forecasts(db._conn, ticker, har, garch, ewma)
+
+        except Exception as exc:
+            logger.warning("ensemble_rv_forecast: accuracy tracking error for %s: %s", ticker, exc)
+
+    ensemble = (
+        weights['har']   * har   +
+        weights['garch'] * garch +
+        weights['ewma']  * ewma
+    )
 
     return {
-        'har': float(har),
-        'garch': float(garch),
-        'ewma': float(ewma),
-        'ensemble': float(ensemble),
+        'har':          float(har),
+        'garch':        float(garch),
+        'ewma':         float(ewma),
+        'ensemble':     float(ensemble),
+        'weights_used': weights,
     }
 
 
