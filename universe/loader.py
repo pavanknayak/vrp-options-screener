@@ -35,6 +35,29 @@ class TickerInfo:
     options_filter: dict                # atm_bid_ask_max_pct, min_oi, etc.
     no_entry_days: list[str] = field(default_factory=list)  # ["thursday_after_2pm","friday"] for 1I
     notes: Optional[str] = None         # per-ticker override notes
+    sector: str = "Unknown"             # e.g. "Technology", "Healthcare", "Financials", etc.
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _infer_sector(tier: str, asset_class: str) -> str:
+    """Infer sector from tier/asset_class when not specified in tickers.json."""
+    sector_map = {
+        "broad_market_etf": "Diversified",
+        "sector_etf": "Diversified",
+        "crypto_etf": "Cryptocurrency",
+        "bond_etf": "Fixed Income",
+        "china_adr": "International",
+        "india_adr": "International",
+        "row_adr": "International",
+        "reit": "Real Estate",
+        "bank": "Financials",
+        "insurance": "Financials",
+        "financial": "Financials",
+    }
+    return sector_map.get(asset_class, "Equity")
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +100,7 @@ def load_universe() -> dict[str, TickerInfo]:
                 symbol = entry.upper()
                 effective_structures = list(tier_permitted)
                 notes: Optional[str] = None
+                ticker_sector: str = _infer_sector(tier_id, asset_class)
             else:
                 # Per-ticker override dict: {"symbol": "INDL", "override_structures": [...], "note": "..."}
                 symbol = entry["symbol"].upper()
@@ -84,6 +108,7 @@ def load_universe() -> dict[str, TickerInfo]:
                     entry.get("override_structures", tier_permitted)
                 )
                 notes = entry.get("note")
+                ticker_sector = entry.get("sector", _infer_sector(tier_id, asset_class))
 
             if symbol in universe:
                 # Skip duplicates — first occurrence (lowest tier) wins.
@@ -100,6 +125,7 @@ def load_universe() -> dict[str, TickerInfo]:
                 options_filter=dict(options_filter),
                 no_entry_days=list(no_entry_days),
                 notes=notes,
+                sector=ticker_sector,
             )
 
     return universe
