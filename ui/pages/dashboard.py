@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 from datetime import datetime
 from ui.components.regime_banner import render_regime_banner
+from ui.components.onboarding import render_onboarding, render_onboarding_button
 
 
 def _build_dataframe(results: list[dict]) -> pd.DataFrame:
@@ -40,9 +41,78 @@ def _build_dataframe(results: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _score_badge(score: float) -> str:
+    """Return plain-language score interpretation."""
+    if score >= 90:   return "Exceptional"
+    if score >= 75:   return "Strong"
+    if score >= 60:   return "Good"
+    if score >= 40:   return "Moderate"
+    return "Weak"
+
+
+def _score_color(score: float) -> str:
+    if score >= 75:  return "normal"   # green in Streamlit
+    if score >= 60:  return "off"      # light green
+    if score >= 40:  return "inverse"  # yellow/orange
+    return "off"
+
+
+def _render_risk_panel() -> None:
+    """Show leading risk indicators: VVIX z-score, HYG stress, correlation pulse."""
+    try:
+        import yfinance as yf
+        import numpy as np
+
+        # Fetch HYG (high-yield bonds) and SPY for credit stress signal
+        @st.cache_data(ttl=1800)
+        def _fetch_risk_data():
+            hyg = yf.download("HYG", period="60d", auto_adjust=True, progress=False)["Close"]
+            spy = yf.download("SPY", period="60d", auto_adjust=True, progress=False)["Close"]
+            vvix = yf.download("^VVIX", period="260d", auto_adjust=True, progress=False)["Close"]
+            return hyg, spy, vvix
+
+        hyg, spy, vvix = _fetch_risk_data()
+
+        indicators_hit = 0
+        indicator_details = []
+
+        # 1. VVIX Z-score
+        if vvix is not None and len(vvix) > 30:
+            vvix_z = float((vvix.iloc[-1] - vvix.mean()) / vvix.std())
+            if vvix_z > 1.5:
+                indicators_hit += 1
+                indicator_details.append(f"VVIX elevated (Z={vvix_z:.1f})")
+
+        # 2. HYG/SPY stress ratio
+        if hyg is not None and spy is not None and len(hyg) > 10 and len(spy) > 10:
+            ratio = (hyg / hyg.iloc[0]) / (spy / spy.iloc[0])  # relative performance
+            ratio_z = float((ratio.iloc[-1] - ratio.mean()) / max(ratio.std(), 1e-6))
+            if ratio_z < -1.5:  # HYG underperforming SPY = credit stress
+                indicators_hit += 1
+                indicator_details.append(f"Credit stress (HYG/SPY ratio Z={ratio_z:.1f})")
+
+        # Display
+        if indicators_hit == 0:
+            st.success("Risk Indicators: All Clear", icon="✅")
+        elif indicators_hit == 1:
+            st.warning(
+                f"Risk Indicators: {indicators_hit} signal elevated — {', '.join(indicator_details)}",
+                icon="⚠️",
+            )
+        else:
+            st.error(
+                f"Risk Indicators: {indicators_hit} signals elevated — {', '.join(indicator_details)}",
+                icon="🚨",
+            )
+    except Exception:
+        pass  # Never block the dashboard if risk panel fails
+
+
 def render_dashboard() -> None:
     """Render the Scanner Dashboard page."""
+    render_onboarding()
     render_regime_banner()
+    _render_risk_panel()
     st.title("Scanner Dashboard")
 
     # --- Scan Status ---
@@ -60,7 +130,7 @@ def render_dashboard() -> None:
 
     # --- Run Scan Controls ---
     st.divider()
-    btn_col1, btn_col2, btn_col3 = st.columns(3)
+    btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
     with btn_col1:
         if st.button("Run Full Scan", type="primary", key="btn_full_scan"):
             _trigger_scan("full")
@@ -70,6 +140,8 @@ def render_dashboard() -> None:
     with btn_col3:
         if st.button("Event Refresh", key="btn_event_scan"):
             _trigger_scan("event")
+    with btn_col4:
+        render_onboarding_button()
 
     if not results:
         st.info("No scan results yet. Run a scan to populate the dashboard.")
@@ -121,6 +193,20 @@ def render_dashboard() -> None:
     )
     df_filtered = df[mask].reset_index(drop=True)
 
+    # --- Score Guide ---
+    with st.expander("Score Guide", expanded=False):
+        cols = st.columns(5)
+        for i, (label, rng, color) in enumerate([
+            ("Weak (0-39)", "Premium not elevated enough", "🔴"),
+            ("Moderate (40-59)", "Some premium available", "🟡"),
+            ("Good (60-74)", "Clear premium, favorable conditions", "🟢"),
+            ("Strong (75-89)", "High premium, persistent signal", "🟢"),
+            ("Exceptional (90+)", "Rare convergence of all signals", "⭐"),
+        ]):
+            with cols[i]:
+                st.caption(f"{color} **{label}**")
+                st.caption(rng)
+
     # --- CSV Export (UI-06) ---
     csv_bytes = df_filtered.to_csv(index=False).encode("utf-8")
     st.download_button(
@@ -154,6 +240,23 @@ def render_dashboard() -> None:
         if event and hasattr(event, "selection")
         else []
     )
+    # --- Column Definitions ---
+    with st.expander("Column Definitions", expanded=False):
+        st.markdown("""
+    | Column | Meaning |
+    |--------|---------|
+    | **Score** | Composite VRP score 0-100. Higher = more overpriced options. ≥60 is worth analyzing. |
+    | **IV30** | 30-day implied volatility (%). How expensive options are in annualized terms. |
+    | **VRP** | Volatility Risk Premium (%). How much IV exceeds recent realized volatility. Positive = you're being overpaid. |
+    | **VRP%** | VRP as a % of IV30 — measures the relative richness of the premium. |
+    | **IVP** | IV Percentile. 80 means options are pricier than 80% of the past year's days. |
+    | **Persistence** | Fraction of the last 30 days where VRP was positive. Higher = more reliable premium. |
+    | **Excess VRP** | VRP above and beyond what beta to the market explains. Pure idiosyncratic premium. |
+    | **Skew** | Put-call IV spread at 25-delta. Higher = more demand for downside protection (good for sellers). |
+    | **EM Ratio** | Implied Move ÷ Expected Move. >1.0 = options overpriced vs how much stock actually moves. |
+    | **GO/NO-GO** | Whether the trade passed all 21 quality gates (requires Schwab Stage 2). |
+        """)
+
     if selected_rows:
         idx = selected_rows[0]
         selected_ticker = df_filtered.iloc[idx]["Ticker"]
