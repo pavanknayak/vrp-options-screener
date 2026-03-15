@@ -144,11 +144,39 @@ def compute_vrp_signals(
     signals['skew_zscore'] = 0.0
     signals['skew_history_available'] = False
 
+    # --- B2: Idiosyncratic (excess) skew ---
+    # excess_skew = ticker_skew_25d - beta * spy_skew_25d
+    spy_skew = _get_spy_skew()
+    ticker_beta = float(signals.get('beta', beta))
+    excess_skew = skew_25d - ticker_beta * spy_skew
+    signals['excess_skew'] = float(excess_skew)
+    signals['spy_skew_used'] = float(spy_skew)
+
     # --- term_slope ---
     # Positive = contango (normal term structure)
     # Negative = backwardation (stress / near-term event risk)
     term_slope = (vrp_data.get('iv60') or 0) - (vrp_data.get('iv30') or 0)
     signals['term_slope'] = float(term_slope)
+
+    # --- C8: Nelson-Siegel term structure fitting ---
+    ns_result = None
+    try:
+        from analytics.term_structure import fit_nelson_siegel
+        exp_ivs_raw = vrp_data.get('exp_ivs', [])
+        # exp_ivs is a list of dicts {dte, atm_iv, total_var}; build dte->iv map
+        if exp_ivs_raw and len(exp_ivs_raw) >= 3:
+            exp_iv_map = {e['dte']: e['atm_iv'] for e in exp_ivs_raw if 'dte' in e and 'atm_iv' in e}
+            if len(exp_iv_map) >= 3:
+                dtes_ns = sorted(exp_iv_map.keys())
+                ivs_ns  = [exp_iv_map[d] for d in dtes_ns]
+                ns_result = fit_nelson_siegel(dtes_ns, ivs_ns)
+    except Exception:
+        pass
+
+    signals['ts_level']    = ns_result['level']      if ns_result else signals.get('iv30', 0.20)
+    signals['ts_slope_ns'] = ns_result['slope']      if ns_result else 0.0
+    signals['ts_curvature']= ns_result['curvature']  if ns_result else 0.0
+    signals['ts_quality']  = ns_result['ts_quality'] if ns_result else 'poor'
 
     # --- VoV signal (from regime.py) ---
     from analytics.regime import vov_signal
@@ -187,6 +215,43 @@ def compute_vrp_signals(
     signals['pcr_volume']             = float(pcr_result['pcr_volume'])
 
     return signals
+
+
+# ---------------------------------------------------------------------------
+# SPY skew module-level cache (B2)
+# ---------------------------------------------------------------------------
+
+_spy_skew_cache: dict = {}   # keys: "date" (str), "skew" (float)
+
+
+def _get_spy_skew() -> float:
+    """Return today's cached SPY 25-delta skew, or 0.02 as default.
+
+    The cache is populated when SPY itself is scanned — the scanner calls
+    update_spy_skew() after computing SPY signals. When SPY has not been
+    scanned yet today the default 0.02 is used (a typical SPY put skew).
+    """
+    import datetime
+    today = datetime.date.today().isoformat()
+    if _spy_skew_cache.get('date') == today:
+        return float(_spy_skew_cache.get('skew', 0.02))
+    return 0.02
+
+
+def update_spy_skew(skew_25d: float) -> None:
+    """Called by the scanner after computing SPY signals to populate the cache.
+
+    This must be called before other tickers are processed so that
+    idiosyncratic skew computation uses today's SPY reference.
+
+    Parameters
+    ----------
+    skew_25d : float
+        SPY's computed 25-delta skew (put IV minus call IV at 25-delta strikes).
+    """
+    import datetime
+    _spy_skew_cache['date'] = datetime.date.today().isoformat()
+    _spy_skew_cache['skew'] = float(skew_25d)
 
 
 # ---------------------------------------------------------------------------
