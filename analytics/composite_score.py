@@ -5,7 +5,8 @@ Produces a single 0–100 score by combining 12 VRP signals using a weighted
 sum, then applying multiplicative penalties for event risk, jump contamination,
 and IV instability.
 
-Public exports: composite_vrp_score, normalize_signal
+Public exports: composite_vrp_score, normalize_signal, calibrate_weights,
+                set_calibrated_weights
 """
 from __future__ import annotations
 
@@ -19,6 +20,37 @@ _WEIGHTS = [0.18, 0.12, 0.12, 0.10, 0.10, 0.08, 0.08, 0.07, 0.05, 0.04, 0.03, 0.
 assert abs(sum(_WEIGHTS) - 1.0) < 1e-10, (
     f"Weights sum to {sum(_WEIGHTS)}, expected 1.0"
 )
+
+# ---------------------------------------------------------------------------
+# C2: Calibrated-weights module-level cache
+# ---------------------------------------------------------------------------
+
+_calibrated_weights: list[float] | None = None
+_weights_calibrated_date: str = ""
+
+
+def set_calibrated_weights(weights: list[float]) -> None:
+    """Inject calibrated weights computed externally (e.g. from the orchestrator).
+
+    The caller is responsible for ensuring *weights* sums to 1.0 and has
+    exactly 12 elements. This function updates the module-level cache so
+    that subsequent calls to composite_vrp_score() use the calibrated weights.
+
+    Parameters
+    ----------
+    weights : list[float]
+        12-element weight vector summing to 1.0.
+    """
+    global _calibrated_weights, _weights_calibrated_date
+    import datetime
+    if len(weights) == 12 and abs(sum(weights) - 1.0) < 1e-6:
+        _calibrated_weights = list(weights)
+        _weights_calibrated_date = datetime.date.today().isoformat()
+    else:
+        raise ValueError(
+            f"calibrated weights must have 12 elements summing to 1.0; "
+            f"got {len(weights)} elements summing to {sum(weights):.6f}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +110,86 @@ def _gex_support_score(gex_bn: float) -> float:
 
 
 # ---------------------------------------------------------------------------
+# C2: calibrate_weights
+# ---------------------------------------------------------------------------
+
+def calibrate_weights(trade_outcomes: list[dict]) -> list[float]:
+    """Calibrate composite score weights via rolling OLS regression.
+
+    Uses realized trade P&L as the target variable and the 12 normalized
+    signal values as predictors. Fits OLS and normalizes the absolute-value
+    of the coefficients to produce a weight vector summing to 1.0.
+
+    Falls back to _WEIGHTS if fewer than 50 observations, if OLS fails, or
+    if any fitted coefficient is non-finite.
+
+    Parameters
+    ----------
+    trade_outcomes : list[dict]
+        Each dict must have:
+          - 'realized_profit_pct' : float — actual P&L as % of max profit
+                                    in the range [-1.0, 1.0].
+          - One key per signal name (vrp_pctile, vrp_persist_30d, vrp_zscore,
+            em_ratio, excess_vrp, ivp, excess_skew, term_slope_pctile,
+            jump_pct, pcr_oi, gex_billions, vov_z).
+
+    Returns
+    -------
+    list[float]
+        12-element weight vector normalized to sum to 1.0.
+        Returns list(_WEIGHTS) as fallback when insufficient data.
+    """
+    if len(trade_outcomes) < 50:
+        return list(_WEIGHTS)
+
+    # Signal names in the same order as _WEIGHTS
+    signal_names = [
+        'vrp_pctile', 'vrp_persist_30d', 'vrp_zscore', 'em_ratio',
+        'excess_vrp', 'ivp', 'excess_skew', 'term_slope_pctile',
+        'jump_pct', 'pcr_oi', 'gex_billions', 'vov_z',
+    ]
+
+    try:
+        from sklearn.linear_model import LinearRegression
+
+        rows_X = []
+        rows_y = []
+
+        for outcome in trade_outcomes:
+            if 'realized_profit_pct' not in outcome:
+                continue
+            row = []
+            for name in signal_names:
+                row.append(float(outcome.get(name, 0.0)))
+            rows_X.append(row)
+            rows_y.append(float(outcome['realized_profit_pct']))
+
+        if len(rows_X) < 50:
+            return list(_WEIGHTS)
+
+        X = np.array(rows_X, dtype=float)
+        y = np.array(rows_y, dtype=float)
+
+        model = LinearRegression(fit_intercept=True).fit(X, y)
+        coefs = model.coef_
+
+        if not np.all(np.isfinite(coefs)):
+            return list(_WEIGHTS)
+
+        # Use absolute values so negative coefficients still contribute weight
+        abs_coefs = np.abs(coefs)
+        total = abs_coefs.sum()
+        if total < 1e-12:
+            return list(_WEIGHTS)
+
+        calibrated = (abs_coefs / total).tolist()
+        return calibrated
+
+    except Exception:
+        return list(_WEIGHTS)
+
+
+# ---------------------------------------------------------------------------
 # composite_vrp_score
 # ---------------------------------------------------------------------------
 
@@ -95,12 +207,17 @@ def composite_vrp_score(
         0.10  em_ratio            — implied vs realized expected move
         0.10  excess_vrp          — idiosyncratic premium above beta-adj index
         0.08  ivp                 — IV elevation percentile
-        0.08  skew_25d            — hedging demand (put-call skew)
+        0.08  excess_skew         — idiosyncratic hedging demand (B2; falls back
+                                    to skew_25d when excess_skew not present)
         0.07  term_slope_pctile   — term structure support
         0.05  jump_pct (inverted) — jump cleanliness
         0.04  pcr_oi              — put-buying demand
         0.03  gex_billions        — dealer positioning
         0.03  vov_z (inverted)    — IV stability
+
+    When calibrated weights are available (C2), they replace the static
+    _WEIGHTS vector. Calibrated weights are injected by calling
+    set_calibrated_weights() before the scoring loop.
 
     Penalties applied multiplicatively after scaling (PRD §6.11):
         Event:   30% reduction if earnings within expiration window;
@@ -123,6 +240,8 @@ def composite_vrp_score(
     float
         Score in [0.0, 100.0]. Returns 0.0 if VoV Z-score > 2.5 (DISQUALIFY).
     """
+    global _calibrated_weights, _weights_calibrated_date
+
     s = signals  # alias for readability
 
     # VoV disqualifier — check before computing score (fast exit)
@@ -134,23 +253,31 @@ def composite_vrp_score(
     if vov_z > 2.5:
         return 0.0  # DISQUALIFY — IV too unstable to collect premium
 
+    # C2: use calibrated weights when available; fall back to static _WEIGHTS
+    weights = _calibrated_weights if _calibrated_weights is not None else _WEIGHTS
+
+    w = weights  # short alias
+
+    # B2: prefer excess_skew over skew_25d; fall back gracefully
+    skew_signal = s.get('excess_skew', s.get('skew_25d', 0.0))
+
     # ------------------------------------------------------------------
     # 12-signal weighted sum
     # ------------------------------------------------------------------
     raw = (
-        0.18 * normalize_signal(s.get('vrp_pctile', 0.0),      0.0,  1.0)   +  # Magnitude vs history
-        0.12 * normalize_signal(s.get('vrp_persist_30d', 0.5), 0.4,  1.0)   +  # Reliability
-        0.12 * normalize_signal(np.clip(s.get('vrp_zscore', 0.0), -3, 3),
-                                -3.0, 3.0)                                    +  # Statistical significance
-        0.10 * normalize_signal(s.get('em_ratio', 1.0),         0.8,  2.0)   +  # Implied vs realized move
-        0.10 * normalize_signal(s.get('excess_vrp', 0.0),      -0.05, 0.10)  +  # Idiosyncratic premium
-        0.08 * normalize_signal(s.get('ivp', 0.5),              0.0,  1.0)   +  # IV elevation
-        0.08 * normalize_signal(s.get('skew_25d', 0.0),        -0.02, 0.08)  +  # Hedging demand
-        0.07 * normalize_signal(s.get('term_slope_pctile', 0.5), 0.0, 1.0)  +  # Term structure support
-        0.05 * normalize_signal(1.0 - s.get('jump_pct', 0.0),   0.5,  1.0)  +  # Jump cleanliness (inverted)
-        0.04 * normalize_signal(s.get('pcr_oi', 1.0),           0.8,  2.5)  +  # Put buying demand
-        0.03 * _gex_support_score(s.get('gex_billions', 0.0))               +  # Dealer positioning
-        0.03 * normalize_signal(1.0 - vov_z / 3.0,              0.0,  1.0)     # IV stability (inverted VoV)
+        w[0]  * normalize_signal(s.get('vrp_pctile', 0.0),      0.0,  1.0)   +  # Magnitude vs history
+        w[1]  * normalize_signal(s.get('vrp_persist_30d', 0.5), 0.4,  1.0)   +  # Reliability
+        w[2]  * normalize_signal(np.clip(s.get('vrp_zscore', 0.0), -3, 3),
+                                 -3.0, 3.0)                                    +  # Statistical significance
+        w[3]  * normalize_signal(s.get('em_ratio', 1.0),         0.8,  2.0)   +  # Implied vs realized move
+        w[4]  * normalize_signal(s.get('excess_vrp', 0.0),      -0.05, 0.10)  +  # Idiosyncratic premium
+        w[5]  * normalize_signal(s.get('ivp', 0.5),              0.0,  1.0)   +  # IV elevation
+        w[6]  * normalize_signal(skew_signal,                   -0.02, 0.08)  +  # Idiosyncratic hedging demand (B2)
+        w[7]  * normalize_signal(s.get('term_slope_pctile', 0.5), 0.0, 1.0)  +  # Term structure support
+        w[8]  * normalize_signal(1.0 - s.get('jump_pct', 0.0),   0.5,  1.0)  +  # Jump cleanliness (inverted)
+        w[9]  * normalize_signal(s.get('pcr_oi', 1.0),           0.8,  2.5)  +  # Put buying demand
+        w[10] * _gex_support_score(s.get('gex_billions', 0.0))               +  # Dealer positioning
+        w[11] * normalize_signal(1.0 - vov_z / 3.0,              0.0,  1.0)     # IV stability (inverted VoV)
     )
 
     # raw is in [0, 1]; scale to [0, 100]
