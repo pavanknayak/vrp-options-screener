@@ -27,6 +27,20 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Regime-conditional scenario probability table (A1)
+# ---------------------------------------------------------------------------
+
+REGIME_SCENARIO_PROBS: dict[str, dict[str, float]] = {
+    "Low":          {"Bull": 0.25, "Base": 0.65, "Bear": 0.08, "Crash": 0.02},
+    "Normal":       {"Bull": 0.22, "Base": 0.62, "Bear": 0.12, "Crash": 0.04},
+    "Elevated":     {"Bull": 0.18, "Base": 0.58, "Bear": 0.16, "Crash": 0.08},
+    "High":         {"Bull": 0.12, "Base": 0.50, "Bear": 0.25, "Crash": 0.13},
+    "Crisis":       {"Bull": 0.05, "Base": 0.35, "Bear": 0.35, "Crash": 0.25},
+    "VOL_UNSTABLE": {"Bull": 0.15, "Base": 0.50, "Bear": 0.22, "Crash": 0.13},
+}
+
+
+# ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
 
@@ -59,6 +73,8 @@ class PnLResult:
     kelly_contracts: int           # floor(kelly_dollars / (100 * spot))
     kelly_pct: float               # kelly_dollars / portfolio_value
     kelly_breakdown: dict          # {"base": 0.25, "regime_mult": x, "vov_mult": x, "gex_mult": x, "final_f": x}
+    regime_label: str = "Normal"   # regime label used for scenario prob selection (A1)
+    scenario_probs: dict = field(default_factory=dict)  # probabilities used for scenarios (A1)
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +154,7 @@ def compute_pnl_scenarios(
     structure_result,
     chain: dict,
     analytics_result: dict,
-) -> tuple[list[ScenarioPnL], float, float, float, float, float, float]:
+) -> tuple[list[ScenarioPnL], float, float, float, float, float, float, str, dict]:
     """Compute four-scenario P&L and trade management levels.
 
     Args:
@@ -155,27 +171,30 @@ def compute_pnl_scenarios(
             profit_target      — per-contract profit target (50% of max profit)
             hard_stop          — per-contract hard stop (2× credit received)
             roll_trigger       — underlying price triggering roll (breakeven × 0.97)
+            regime_label       — regime label used for scenario prob selection (A1)
+            scenario_probs     — probability dict used for the scenarios (A1)
     """
     try:
         return _compute_pnl_scenarios_inner(structure_result, chain, analytics_result)
     except Exception as exc:  # noqa: BLE001
         logger.error("compute_pnl_scenarios: unexpected error: %s", exc, exc_info=True)
         # Safe fallback — return zeroed scenario list
+        fallback_probs = {"Bull": 0.25, "Base": 0.45, "Bear": 0.20, "Crash": 0.10}
         fallback_scenarios = [
             ScenarioPnL(
                 name=n, underlying_move=0.0, terminal_price=100.0,
                 pnl_per_contract=0.0, probability=p, weighted_pnl=0.0,
             )
-            for n, p in [("Bull", 0.25), ("Base", 0.45), ("Bear", 0.20), ("Crash", 0.10)]
+            for n, p in fallback_probs.items()
         ]
-        return fallback_scenarios, 0.0, 0.0, 100.0, 0.0, 0.0, 97.0
+        return fallback_scenarios, 0.0, 0.0, 100.0, 0.0, 0.0, 97.0, "Normal", fallback_probs
 
 
 def _compute_pnl_scenarios_inner(
     structure_result,
     chain: dict,
     analytics_result: dict,
-) -> tuple[list[ScenarioPnL], float, float, float, float, float, float]:
+) -> tuple[list[ScenarioPnL], float, float, float, float, float, float, str, dict]:
     """Core P&L scenario computation — may raise; caller wraps in try/except."""
 
     # ------------------------------------------------------------------
@@ -186,10 +205,31 @@ def _compute_pnl_scenarios_inner(
 
     if is_crypto:
         moves = {"Bull": +0.50, "Base": 0.0, "Bear": -0.30, "Crash": -0.50}
+        # Crypto always uses fixed probs (regime table is calibrated for equities)
         probs = {"Bull": 0.25, "Base": 0.40, "Bear": 0.20, "Crash": 0.15}
+        regime_label_used = "Normal"  # not regime-adjusted for crypto
     else:
         moves = {"Bull": +0.15, "Base": 0.0, "Bear": -0.10, "Crash": -0.25}
-        probs = {"Bull": 0.25, "Base": 0.45, "Bear": 0.20, "Crash": 0.10}
+        # A1: Regime-conditional scenario probabilities
+        regime_label_used: str = (
+            analytics_result.get("regime", {}).get("label", "Normal") or "Normal"
+        )
+        probs = dict(
+            REGIME_SCENARIO_PROBS.get(regime_label_used, REGIME_SCENARIO_PROBS["Normal"])
+        )
+        # A1: Beta adjustment to Crash probability
+        ticker_beta: float = float(
+            analytics_result.get("signals", {}).get("beta", 1.0) or 1.0
+        )
+        base_crash = probs["Crash"]
+        adjusted_crash = min(base_crash * max(ticker_beta, 0.5), 0.40)  # cap at 40%
+        probs["Crash"] = adjusted_crash
+        # Re-normalize: reduce Bear proportionally so all probs sum to 1.0
+        excess = adjusted_crash - base_crash
+        probs["Bear"] = max(probs["Bear"] - excess * 0.5, 0.05)
+        probs["Base"] = max(probs["Base"] - excess * 0.5, 0.10)
+        total = sum(probs.values())
+        probs = {k: v / total for k, v in probs.items()}
 
     structure: str = structure_result.structure
     spot: float = float(chain.get("underlying_price", structure_result.spot))
@@ -323,6 +363,8 @@ def _compute_pnl_scenarios_inner(
         profit_target,
         hard_stop,
         roll_trigger,
+        regime_label_used,
+        probs,
     )
 
 

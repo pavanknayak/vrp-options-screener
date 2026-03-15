@@ -113,6 +113,8 @@ def run_recommendation(
             profit_target,
             hard_stop,
             roll_trigger,
+            regime_label_used,
+            scenario_probs_used,
         ) = pnl_scenarios_out
 
         # Net credit per contract (in dollars) is the slippage-adjusted EV
@@ -150,6 +152,8 @@ def run_recommendation(
             kelly_contracts=0,
             kelly_pct=0.0,
             kelly_breakdown={},
+            regime_label=regime_label_used,
+            scenario_probs=scenario_probs_used,
         )
 
         kelly_dollars, kelly_contracts, kelly_pct, kelly_breakdown = compute_kelly_size(
