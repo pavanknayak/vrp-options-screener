@@ -109,6 +109,166 @@ def _tail_hedge_recommendation(
     return " ".join(parts)
 
 
+# --- A2: Position Management Alerts ---
+
+def _compute_position_alert(pos: Position, current_prices: dict) -> dict:
+    """Compute management alert for a position using BSM approximation.
+
+    Returns dict with: alert_level, alert_text, action, pnl_pct
+    """
+    try:
+        from datetime import datetime, date
+        from scipy.stats import norm
+
+        ticker = pos.ticker
+        short_strike = float(pos.short_strike)
+        entry_credit = float(pos.net_credit)  # Position uses net_credit, not entry_credit
+        expiration = pos.expiry               # Position uses expiry, not expiration_date
+        contracts = int(pos.quantity)         # Position uses quantity, not contracts
+
+        if not expiration:
+            return {
+                "alert_level": "info",
+                "alert_text": "No expiration date set",
+                "action": "Update position",
+                "pnl_pct": 0,
+            }
+
+        today = date.today()
+        exp_date = datetime.strptime(expiration, "%Y-%m-%d").date()
+        dte = max((exp_date - today).days, 0)
+
+        # Current underlying price (use entry_price if no live price available)
+        current_price = current_prices.get(
+            ticker, pos.entry_price if pos.entry_price else short_strike / 0.95
+        )
+
+        # BSM put approximation for current option value
+        if dte > 0:
+            T = dte / 252
+            sigma = 0.25  # assume 25% IV
+            r = 0.05
+            d1 = (np.log(current_price / short_strike) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+            d2 = d1 - sigma * np.sqrt(T)
+            current_option_value = (
+                short_strike * np.exp(-r * T) * norm.cdf(-d2)
+                - current_price * norm.cdf(-d1)
+            )
+            current_option_value = max(current_option_value, 0)
+        else:
+            current_option_value = max(short_strike - current_price, 0)
+
+        current_pnl = (entry_credit - current_option_value) * 100 * contracts
+        max_profit = entry_credit * 100 * contracts
+        pnl_pct = current_pnl / max_profit if max_profit > 0 else 0
+
+        # Alert logic
+        breakeven = short_strike - entry_credit
+        loss_pct = -current_pnl / max_profit if current_pnl < 0 else 0
+
+        if pnl_pct >= 0.50:
+            return {
+                "alert_level": "success",
+                "alert_text": f"Take Profit — {pnl_pct:.0%} of max profit reached",
+                "action": "Close position now — eliminate remaining risk",
+                "pnl_pct": pnl_pct,
+            }
+        elif dte <= 21:
+            return {
+                "alert_level": "warning",
+                "alert_text": f"Time to Roll — only {dte} DTE remaining",
+                "action": f"Roll forward to avoid gamma risk near expiration",
+                "pnl_pct": pnl_pct,
+            }
+        elif current_price <= breakeven * 1.03:
+            return {
+                "alert_level": "warning",
+                "alert_text": f"Delta Breach — underlying near short strike",
+                "action": (
+                    f"Manage position: underlying ${current_price:.2f} "
+                    f"near breakeven ${breakeven:.2f}"
+                ),
+                "pnl_pct": pnl_pct,
+            }
+        elif loss_pct >= 2.0:
+            return {
+                "alert_level": "error",
+                "alert_text": f"Hard Stop Hit — loss = {loss_pct:.1f}x credit",
+                "action": "Close immediately — 2x credit stop loss reached",
+                "pnl_pct": pnl_pct,
+            }
+        else:
+            return {
+                "alert_level": "info",
+                "alert_text": f"Holding — {pnl_pct:.0%} profit, {dte} DTE remaining",
+                "action": "Continue holding — theta decay working",
+                "pnl_pct": pnl_pct,
+            }
+    except Exception as e:
+        return {
+            "alert_level": "info",
+            "alert_text": "Unable to compute alert",
+            "action": str(e),
+            "pnl_pct": 0,
+        }
+
+
+@st.cache_data(ttl=900)
+def _get_current_prices(tickers: tuple) -> dict:
+    """Fetch current prices via yfinance (cached 15 min)."""
+    try:
+        prices = {}
+        for t in tickers:
+            hist = yf.download(t, period="1d", auto_adjust=True, progress=False)
+            if not hist.empty:
+                prices[t] = float(hist["Close"].iloc[-1])
+        return prices
+    except Exception:
+        return {}
+
+
+# --- B5: Circuit Breaker ---
+
+def _render_circuit_breaker_status(portfolio_value: float) -> None:
+    """Show portfolio drawdown status and circuit breaker."""
+    try:
+        from portfolio.risk import get_portfolio_drawdown
+        dd = get_portfolio_drawdown(portfolio_value)
+
+        st.subheader("Portfolio Health")
+        col1, col2, col3 = st.columns(3)
+        col1.metric(
+            "Current Drawdown", f"{dd['drawdown_pct']:.1%}",
+            delta=f"Peak: ${dd['peak_nav']:,.0f}", delta_color="inverse",
+        )
+        col2.metric(
+            "Circuit Breaker",
+            "HARD STOP" if dd["hard_limit_hit"] else (
+                "SOFT LIMIT" if dd["soft_limit_hit"] else "OK"
+            ),
+            delta_color="inverse" if dd["hard_limit_hit"] else "normal",
+        )
+        col3.metric(
+            "Sizing Reduction",
+            "100% (blocked)" if dd["hard_limit_hit"] else (
+                "50%" if dd["soft_limit_hit"] else "None"
+            ),
+        )
+
+        if dd["hard_limit_hit"]:
+            st.error("HARD STOP: Drawdown >=15% — no new positions until recovery or manual override.")
+            if st.checkbox(
+                "Override circuit breaker (I understand the risks)",
+                key="cb_override",
+            ):
+                st.session_state["circuit_breaker_override"] = True
+                st.warning("Override active. Proceed with caution.")
+        elif dd["soft_limit_hit"]:
+            st.warning("SOFT LIMIT: Drawdown >=8% — position sizes automatically reduced by 50%.")
+    except Exception:
+        pass  # Never block the portfolio monitor
+
+
 # --- Streamlit Page ---
 
 def render_portfolio_monitor() -> None:
@@ -117,6 +277,24 @@ def render_portfolio_monitor() -> None:
     st.title("Portfolio Monitor")
 
     portfolio_value = st.session_state.get("config", {}).get("portfolio_value", 100_000.0)
+
+    # --- B5: Circuit Breaker Status (top of page) ---
+    _render_circuit_breaker_status(portfolio_value)
+
+    st.divider()
+
+    # --- Tabs: Real Positions | Paper Trading (B7) ---
+    real_tab, paper_tab = st.tabs(["Real Positions", "Paper Trading"])
+
+    with real_tab:
+        _render_real_positions(portfolio_value)
+
+    with paper_tab:
+        _render_paper_trading()
+
+
+def _render_real_positions(portfolio_value: float) -> None:
+    """Render the real positions tab including alerts and risk analytics."""
 
     # --- Position Entry Form ---
     st.header("Open Positions")
@@ -193,6 +371,40 @@ def render_portfolio_monitor() -> None:
         delete_position(del_id)
         st.success("Position deleted.")
         st.rerun()
+
+    st.divider()
+
+    # --- A2: Position Management Alerts ---
+    st.subheader("Position Management Alerts")
+
+    alert_tickers = tuple(set(p.ticker for p in positions if p.ticker))
+    current_prices = _get_current_prices(alert_tickers)
+
+    for pos in positions:
+        alert = _compute_position_alert(pos, current_prices)
+        ticker = pos.ticker
+        structure = pos.structure.upper()
+        strike = pos.short_strike
+        exp = pos.expiry
+
+        with st.expander(
+            f"{ticker} {structure} ${strike} exp {exp} — {alert['alert_text']}",
+            expanded=(alert["alert_level"] != "info"),
+        ):
+            if alert["alert_level"] == "success":
+                st.success(alert["action"])
+            elif alert["alert_level"] == "warning":
+                st.warning(alert["action"])
+            elif alert["alert_level"] == "error":
+                st.error(alert["action"])
+            else:
+                st.info(alert["action"])
+
+            pnl_pct = alert["pnl_pct"]
+            st.progress(
+                max(0.0, min(1.0, pnl_pct)),
+                text=f"P&L: {pnl_pct:.0%} of max profit",
+            )
 
     st.divider()
 
@@ -288,3 +500,81 @@ def render_portfolio_monitor() -> None:
     rec = _tail_hedge_recommendation(short_vol_pct, cvar, portfolio_value,
                                       corr if not corr.empty else pd.DataFrame())
     st.info(rec)
+
+
+def _render_paper_trading() -> None:
+    """Render the Paper Trading tab (B7)."""
+    st.info(
+        "Paper trading lets you practice strategies without real money. "
+        "Track hypothetical positions and review performance before going live."
+    )
+
+    # Add paper position form
+    with st.form("add_paper_position"):
+        st.subheader("Add Paper Trade")
+        col1, col2 = st.columns(2)
+        with col1:
+            paper_ticker = st.text_input("Ticker", placeholder="e.g. SPY")
+            paper_structure = st.selectbox(
+                "Structure", ["csp", "spread", "collar", "iron_condor"],
+            )
+            paper_strike = st.number_input("Short Strike", min_value=0.0, value=400.0)
+            paper_credit = st.number_input(
+                "Net Credit (per share)", min_value=0.0, value=1.0, step=0.05,
+            )
+        with col2:
+            paper_expiry = st.date_input("Expiration Date")
+            paper_contracts = st.number_input("Contracts", min_value=1, value=1)
+            paper_entry_price = st.number_input(
+                "Underlying Price at Entry", min_value=0.0, value=400.0,
+            )
+            paper_long_strike = st.number_input(
+                "Long Strike (spread only)", min_value=0.0, value=0.0,
+            )
+
+        if st.form_submit_button("Add Paper Trade"):
+            try:
+                from portfolio.db import save_paper_position
+                pos = Position(
+                    id=None,
+                    ticker=paper_ticker.strip().upper(),
+                    structure=paper_structure,
+                    expiry=paper_expiry.isoformat(),
+                    short_strike=paper_strike,
+                    long_strike=paper_long_strike if paper_long_strike > 0 else None,
+                    net_credit=paper_credit,
+                    quantity=int(paper_contracts),
+                    is_short_vol=True,
+                    notes="",
+                    entry_price=paper_entry_price,
+                    sector="Unknown",
+                    paper=True,
+                )
+                save_paper_position(pos)
+                st.success(f"Paper trade added: {paper_ticker.strip().upper()} {paper_structure}")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error adding paper trade: {e}")
+
+    # Show paper positions
+    try:
+        from portfolio.db import load_paper_positions, delete_paper_position
+        paper_positions = load_paper_positions()
+        if paper_positions:
+            st.subheader("Active Paper Trades")
+            for p in paper_positions:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.text(
+                        f"{p.get('ticker')} {p.get('structure', '').upper()} "
+                        f"${p.get('short_strike', 0):.0f} exp {p.get('expiration_date', '')} "
+                        f"— Credit: ${p.get('entry_credit', 0):.2f}"
+                    )
+                with col2:
+                    if st.button("Remove", key=f"del_paper_{p.get('id')}"):
+                        delete_paper_position(p["id"])
+                        st.rerun()
+        else:
+            st.info("No paper trades yet. Add one above.")
+    except Exception as e:
+        st.warning(f"Paper trading not available: {e}")
