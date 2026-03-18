@@ -64,8 +64,8 @@ def fetch_fred_rate(series_id: str = "DGS3MO") -> Optional[float]:
     logger.info("[CACHE MISS] fred %s — fetching FRED API", series_id)
 
     if not FRED_API_KEY:
-        logger.warning(
-            "[WARN] FRED_API_KEY not set — cannot fetch %s; returning None",
+        logger.debug(
+            "[DEBUG] FRED_API_KEY not set — cannot fetch %s; returning None",
             series_id,
         )
         return None
@@ -123,7 +123,7 @@ def fetch_vix_history(lookback_days: int = 252) -> Optional[pd.Series]:
     logger.info("[CACHE MISS] fred VIXCLS — fetching FRED API")
 
     if not FRED_API_KEY:
-        logger.warning("[WARN] FRED_API_KEY not set — cannot fetch VIX history; returning None")
+        logger.debug("[DEBUG] FRED_API_KEY not set — cannot fetch VIX history; returning None")
         return None
 
     try:
