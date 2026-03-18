@@ -125,6 +125,64 @@ def schwab_connection_status() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# OHLCV via Schwab price history (Stage 2 replacement for yfinance)
+# ---------------------------------------------------------------------------
+
+def fetch_ohlcv_schwab(ticker: str, period_days: int = 252) -> pd.DataFrame:
+    """Fetch daily OHLCV history for *ticker* using Schwab's price history API.
+
+    Returns a DataFrame with Open/High/Low/Close/Volume columns, or an empty
+    DataFrame if Schwab is not configured or the request fails.
+    Cached for the same TTL as yfinance OHLCV (one day).
+    """
+    from cache.db import TTL, get_db
+    ticker = ticker.upper()
+    cache_key = f"{ticker}_ohlcv_{date.today().isoformat()}"
+
+    cached = get_db().get(cache_key)
+    if cached is not None:
+        return cached
+
+    client = get_schwab_client()
+    if client is None:
+        return pd.DataFrame()
+
+    try:
+        _enforce_rate_limit()
+        resp = client.get_price_history(
+            ticker,
+            period_type=client.PriceHistory.PeriodType.YEAR,
+            period=client.PriceHistory.Period.ONE_YEAR,
+            frequency_type=client.PriceHistory.FrequencyType.DAILY,
+            frequency=client.PriceHistory.Frequency.DAILY,
+            need_extended_hours_data=False,
+        )
+        data = resp.json()
+        candles = data.get("candles", [])
+        if not candles:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(candles)
+        df["datetime"] = pd.to_datetime(df["datetime"], unit="ms")
+        df = df.set_index("datetime").rename(columns={
+            "open": "Open", "high": "High", "low": "Low",
+            "close": "Close", "volume": "Volume",
+        })
+        df = df[["Open", "High", "Low", "Close", "Volume"]].tail(period_days)
+
+        if len(df) >= 50:
+            get_db().set(cache_key, df, TTL["ohlcv_history"])
+            logger.info("[SCHWAB OHLCV] Fetched %d days for %s", len(df), ticker)
+            return df
+
+        return pd.DataFrame()
+
+    except Exception as exc:
+        logger.warning("[SCHWAB OHLCV] Failed for %s: %s", ticker, exc)
+        return pd.DataFrame()
+
+
+# ---------------------------------------------------------------------------
 # Rate limiting helper
 # ---------------------------------------------------------------------------
 

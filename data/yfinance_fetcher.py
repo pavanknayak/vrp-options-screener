@@ -22,9 +22,80 @@ from cache.db import TTL, get_db
 
 logger = logging.getLogger(__name__)
 
+_BULK_BATCH_SIZE = 200  # max tickers per yf.download() call
+
 
 # ---------------------------------------------------------------------------
-# OHLCV history
+# OHLCV history — bulk (Stage 1 pre-fetch)
+# ---------------------------------------------------------------------------
+
+def fetch_ohlcv_bulk(tickers: list[str], period_days: int = 252) -> dict[str, pd.DataFrame]:
+    """Bulk OHLCV download using yf.download() — far fewer HTTP requests than individual calls.
+
+    Returns a dict mapping ticker -> DataFrame. Tickers already in cache are skipped.
+    Uses batches of _BULK_BATCH_SIZE to avoid URL length limits.
+    """
+    from cache.db import TTL, get_db as _get_db
+    db = _get_db()
+    today = date.today().isoformat()
+    result: dict[str, pd.DataFrame] = {}
+    uncached: list[str] = []
+
+    for ticker in tickers:
+        cached = db.get(f"{ticker}_ohlcv_{today}")
+        if cached is not None:
+            result[ticker] = cached
+        else:
+            uncached.append(ticker)
+
+    if not uncached:
+        logger.info("[BULK OHLCV] All %d tickers served from cache", len(result))
+        return result
+
+    logger.info("[BULK OHLCV] Downloading %d tickers in batches of %d", len(uncached), _BULK_BATCH_SIZE)
+
+    for i in range(0, len(uncached), _BULK_BATCH_SIZE):
+        batch = uncached[i : i + _BULK_BATCH_SIZE]
+        try:
+            raw = yf.download(
+                batch,
+                period="1y",
+                interval="1d",
+                auto_adjust=True,
+                progress=False,
+                threads=True,
+            )
+            if raw.empty:
+                continue
+
+            single = len(batch) == 1
+            for ticker in batch:
+                try:
+                    if single:
+                        df = raw.copy()
+                    else:
+                        # MultiIndex: level 0 = price field, level 1 = ticker
+                        cols = {f: raw[f][ticker] for f in ["Open", "High", "Low", "Close", "Volume"] if f in raw.columns.get_level_values(0)}
+                        df = pd.DataFrame(cols)
+
+                    df = df.dropna(how="all")
+                    keep = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in df.columns]
+                    df = df[keep].tail(period_days)
+
+                    if len(df) >= 50:
+                        db.set(f"{ticker}_ohlcv_{today}", df, TTL["ohlcv_history"])
+                        result[ticker] = df
+                except Exception:
+                    pass  # individual parse failure — ticker will fall through to single fetch
+        except Exception as exc:
+            logger.warning("[BULK OHLCV] Batch %d-%d failed: %s", i, i + len(batch), exc)
+
+    logger.info("[BULK OHLCV] Done — %d/%d tickers fetched", len(result), len(tickers))
+    return result
+
+
+# ---------------------------------------------------------------------------
+# OHLCV history — single ticker (Stage 2 fallback)
 # ---------------------------------------------------------------------------
 
 def fetch_ohlcv(ticker: str, period_days: int = 252) -> pd.DataFrame:

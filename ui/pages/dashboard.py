@@ -78,7 +78,7 @@ def _render_risk_panel() -> None:
 
         # 1. VVIX Z-score
         if vvix is not None and len(vvix) > 30:
-            vvix_z = float((vvix.iloc[-1] - vvix.mean()) / vvix.std())
+            vvix_z = float((float(vvix.iloc[-1]) - vvix.mean()) / vvix.std())
             if vvix_z > 1.5:
                 indicators_hit += 1
                 indicator_details.append(f"VVIX elevated (Z={vvix_z:.1f})")

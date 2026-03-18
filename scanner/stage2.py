@@ -3,7 +3,7 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
-from data.schwab_client import fetch_options_chain
+from data.schwab_client import fetch_options_chain, fetch_ohlcv_schwab
 from data.yfinance_fetcher import fetch_ohlcv
 from data.fred_fetcher import get_risk_free_rate, fetch_vix_history
 from analytics.engine import run_analytics
@@ -84,7 +84,10 @@ def _analyze_one_parallel(ticker: str, r: float, vix: float) -> dict:
     # Acquire a Schwab token before making the API call
     get_schwab_bucket().acquire()
 
-    ohlc = fetch_ohlcv(ticker)
+    # Prefer Schwab price history (already authenticated, no crumb issues); fall back to yfinance
+    ohlc = fetch_ohlcv_schwab(ticker)
+    if ohlc is None or ohlc.empty:
+        ohlc = fetch_ohlcv(ticker)
     if ohlc is None or ohlc.empty:
         return {"ticker": ticker, "error": "ohlcv_unavailable"}
 

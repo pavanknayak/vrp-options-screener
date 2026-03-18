@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional
 import pandas as pd
-from data.yfinance_fetcher import fetch_ohlcv, fetch_earnings_date, fetch_yf_options_summary
+from data.yfinance_fetcher import fetch_ohlcv, fetch_ohlcv_bulk, fetch_earnings_date, fetch_yf_options_summary
 from universe.loader import load_universe, TickerInfo
 
 logger = logging.getLogger(__name__)
@@ -26,10 +26,10 @@ class Stage1Result:
     skip_reason: Optional[str]   # non-None means ticker was skipped
 
 
-def _score_ticker(ticker: str, info: TickerInfo, min_dte: int, max_dte: int) -> Stage1Result:
+def _score_ticker(ticker: str, info: TickerInfo, min_dte: int, max_dte: int, prefetched_ohlcv: Optional[pd.DataFrame] = None) -> Stage1Result:
     try:
-        # Step 1: Fetch OHLCV
-        ohlc = fetch_ohlcv(ticker)
+        # Step 1: Use pre-fetched OHLCV (from bulk download) or fall back to individual fetch
+        ohlc = prefetched_ohlcv if (prefetched_ohlcv is not None and not prefetched_ohlcv.empty) else fetch_ohlcv(ticker)
         if ohlc is None or ohlc.empty:
             return Stage1Result(ticker=ticker, tier=info.tier, asset_class=info.asset_class, score=0.0, ivp_approx=0.0, vrp_approx=0.0, atm_iv=0.0, earnings_date=None, skip_reason="ohlcv_unavailable")
 
@@ -96,10 +96,15 @@ def run_stage1(
         universe = load_universe()
     logger.info("[STAGE1] Starting Stage 1 scan: %d tickers, %d workers", len(universe), n_workers)
     t_start = time.time()
+
+    # Bulk OHLCV pre-fetch — replaces ~1,485 individual yfinance calls with ~8 batched requests
+    all_tickers = list(universe.keys())
+    ohlcv_cache = fetch_ohlcv_bulk(all_tickers)
+
     results: list[Stage1Result] = []
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
         future_to_ticker = {
-            executor.submit(_score_ticker, ticker, info, min_dte, max_dte): ticker
+            executor.submit(_score_ticker, ticker, info, min_dte, max_dte, ohlcv_cache.get(ticker)): ticker
             for ticker, info in universe.items()
         }
         for future in as_completed(future_to_ticker):
